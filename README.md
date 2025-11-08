@@ -1,6 +1,6 @@
-# Score GH × TM 💗
+# Score H&M 💗
 
-A cute and funny web app for tracking relationship points between GH and TM!
+A cute and funny web app for tracking relationship points between H and M!
 
 ## Features
 
@@ -42,11 +42,11 @@ yarn start
 
 ## Levels
 
-- 0–9: GH Mới Vào Nghề 🌱
-- 10–29: GH Biết Lắng Nghe 👂
+- 0–9: H Mới Vào Nghề 🌱
+- 10–29: H Biết Lắng Nghe 👂
 - 30–59: Trái Tim Ấm Áp 🤍
 - 60–99: Bậc Thầy Yêu Thương 🏆
-- 100+: GH Certified™ 👑
+- 100+: H Certified™ 👑
 
 ## Technologies
 

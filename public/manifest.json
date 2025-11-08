@@ -1,7 +1,7 @@
 {
-  "name": "GH × TM – Finance Tracker",
-  "short_name": "GH×TM",
-  "description": "Theo dõi chi tiêu và yêu thương của GH và TM mọi lúc mọi nơi.",
+  "name": "H&M – Finance Tracker",
+  "short_name": "H&M",
+  "description": "Theo dõi chi tiêu và yêu thương của H&M mọi lúc mọi nơi.",
   "start_url": "/chi-tieu",
   "display": "standalone",
   "background_color": "#f9fafb",

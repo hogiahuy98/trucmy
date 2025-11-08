@@ -67,7 +67,7 @@ export default function AuthPage() {
       // Redirect to chi-tieu
       router.push('/chi-tieu')
     } else {
-      setErrorMessage('Sai rồi nha 😏 chỉ có GH × TM biết pattern này thôi.')
+      setErrorMessage('Sai rồi nha 😏 chỉ có H&M biết pattern này thôi.')
       setIsShaking(true)
       setTimeout(() => setIsShaking(false), 500)
       setSelectedPattern([])
@@ -98,7 +98,7 @@ export default function AuthPage() {
               transition={{ delay: 0.1 }}
             >
               <Title level={2} className="auth-title">
-                GH × TM — Private Access
+                H&M — Private Access
               </Title>
             </motion.div>
             <motion.div
@@ -107,7 +107,7 @@ export default function AuthPage() {
               transition={{ delay: 0.2 }}
             >
               <Text className="auth-subtitle">
-                Chọn đúng thứ tự 3 emoji (GH × TM biết thôi)
+                Chọn đúng thứ tự 3 emoji (H&M biết thôi)
               </Text>
             </motion.div>
           </div>

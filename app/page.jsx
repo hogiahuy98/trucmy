@@ -221,7 +221,7 @@ export default function HomePage() {
     if (navigator.share) {
       navigator
         .share({
-          title: 'Score GH × TM',
+          title: 'Score H&M',
           text: shareMessage,
         })
         .catch(() => {
@@ -261,7 +261,7 @@ export default function HomePage() {
         <div className="container">
           <div className="header-section">
             <Title level={1} className="main-title">
-              Score GH × TM <span className="heart-title">💗💗</span>
+              Score H&M <span className="heart-title">💗💗</span>
             </Title>
             <Text className="subtitle">Ghi điểm mỗi khi GH làm điều tốt cho TM</Text>
           </div>

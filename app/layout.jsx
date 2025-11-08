@@ -2,8 +2,8 @@ import 'antd/dist/reset.css'
 import './globals.css'
 
 export const metadata = {
-  title: 'Score GH × TM',
-  description: 'Theo dõi điểm yêu thương giữa GH và TM với Next.js',
+  title: 'Score H&M',
+  description: 'Theo dõi điểm yêu thương giữa H&M với Next.js',
   manifest: '/manifest.json',
   themeColor: '#ff4b6e',
   icons: {

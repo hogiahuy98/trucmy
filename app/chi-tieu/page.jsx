@@ -245,7 +245,7 @@ export default function FinancePage() {
             </Col>
             <Col xs={24} md={12}>
               <Card className="panel">
-                <Text type="secondary">GH vs TM</Text>
+                <Text type="secondary">H vs M</Text>
                 <div className="split-bar">
                   <motion.div
                     className="bar-gh"
@@ -424,8 +424,9 @@ export default function FinancePage() {
                     <Text type="secondary" style={{ marginRight: 8 }}>Người chi</Text>
                     <Radio.Group value={person} onChange={(e) => setPerson(e.target.value)}>
                       <Radio.Button value="GH">GH</Radio.Button>
-                      <Radio.Button value="TM">TM</Radio.Button>
                       <Radio.Button value="Both">Cả 2</Radio.Button>
+                      <Radio.Button value="TM">TM</Radio.Button>
+
                     </Radio.Group>
                   </div>
 
@@ -451,7 +452,7 @@ export default function FinancePage() {
             )}
           </AnimatePresence>
 
-          <div className="footer">GH × TM — build, measure, save 💰</div>
+          <div className="footer">H&M — build, measure, save 💰</div>
         </div>
       </div>
     </ConfigProvider>
