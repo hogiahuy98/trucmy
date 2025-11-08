@@ -11,6 +11,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@supabase/supabase-js": "^2.80.0",
+    "@tailwindcss/postcss": "^4.1.17",
     "antd": "^5.28.0",
     "dayjs": "^1.11.19",
     "framer-motion": "^12.23.24",
@@ -22,11 +23,14 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/react": "19.2.2",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.14.0",
     "eslint-config-next": "^15.0.0",
     "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.17"
+    "sass": "^1.93.3",
+    "tailwindcss": "^4.1.17",
+    "typescript": "5.9.3"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

@@ -1,0 +1,87 @@
+.financeApp {
+  width: 100%;
+  min-height: calc(100vh - 40px);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: relative;
+  background: radial-gradient(1200px 400px at -10% 0%, #ffe0e6 0%, transparent 60%),
+    radial-gradient(800px 300px at 110% 10%, #ffeaf0 0%, transparent 60%),
+    #f9fafb;
+}
+
+.financeContainer {
+  width: 100%;
+  max-width: 1024px;
+  padding: 20px;
+}
+
+.financeHeader {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.titleGradient {
+  background: linear-gradient(135deg, #ff93a9, #ff4b6e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff4b6e, #ff93a9);
+  border: none;
+  box-shadow: 0 8px 24px rgba(255, 75, 110, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 32px rgba(255, 75, 110, 0.4);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.fabInner {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+}
+
+.footer {
+  text-align: center;
+  padding: 24px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.fancyModal {
+  :global(.ant-modal-content) {
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  :global(.ant-modal-header) {
+    border-bottom: none;
+    padding: 24px 24px 0;
+  }
+
+  :global(.ant-modal-body) {
+    padding: 24px;
+  }
+}
+

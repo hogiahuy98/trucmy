@@ -2,8 +2,9 @@
 
 import { create } from 'zustand'
 import { supabase } from '../../lib/supabase'
+import type { Category, Expense, MonthlySummary } from './types'
 
-const DEFAULT_CATEGORIES = [
+const DEFAULT_CATEGORIES: Category[] = [
   { key: 'cafe', label: 'Cafe', icon: 'coffee', color: '#A78BFA' },
   { key: 'food', label: 'Ăn uống', icon: 'utensils', color: '#60A5FA' },
   { key: 'market', label: 'Đi chợ', icon: 'shopping-cart', color: '#34D399' },
@@ -12,7 +13,39 @@ const DEFAULT_CATEGORIES = [
   { key: 'internet', label: 'Tiền mạng', icon: 'wifi', color: '#22D3EE' },
 ]
 
-export const useFinanceStore = create((set, get) => ({
+interface PendingMutation {
+  type: 'addExpense' | 'addCategory' | 'deleteExpense'
+  data: any
+}
+
+interface FinanceState {
+  categories: Category[]
+  expenses: Expense[]
+  isLoading: boolean
+  isOnline: boolean
+  syncError: string | null
+  pendingMutations: PendingMutation[]
+  _expensesChannel?: any
+  _categoriesChannel?: any
+  initialize: () => Promise<void>
+  setupRealtimeSubscriptions: () => void
+  cleanup: () => void
+  addExpense: (expense: {
+    id: number
+    amount: number
+    person: 'GH' | 'TM' | 'Both'
+    category: string
+    note?: string | null
+    date: Date | string
+  }) => Promise<void>
+  addCategory: (label: string) => Promise<void>
+  deleteExpense: (expenseId: number) => Promise<void>
+  syncPendingMutations: () => Promise<void>
+  setOnlineStatus: (isOnline: boolean) => void
+  getMonthlySummary: () => MonthlySummary
+}
+
+export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: DEFAULT_CATEGORIES,
   expenses: [],
   isLoading: false,
@@ -22,12 +55,13 @@ export const useFinanceStore = create((set, get) => ({
 
   // Initialize: Load data from Supabase
   initialize: async () => {
+    set({ isLoading: true, syncError: null })
+
     if (!supabase) {
       console.warn('Supabase not configured, using local state only')
+      set({ isLoading: false })
       return
     }
-
-    set({ isLoading: true, syncError: null })
 
     try {
       // Load categories
@@ -38,9 +72,10 @@ export const useFinanceStore = create((set, get) => ({
 
       if (categoriesError) throw categoriesError
 
-      const loadedCategories = categoriesData && categoriesData.length > 0
-        ? categoriesData
-        : DEFAULT_CATEGORIES
+      const loadedCategories: Category[] =
+        categoriesData && categoriesData.length > 0
+          ? categoriesData
+          : DEFAULT_CATEGORIES
 
       // Load expenses
       const { data: expensesData, error: expensesError } = await supabase
@@ -53,14 +88,14 @@ export const useFinanceStore = create((set, get) => ({
 
       set({
         categories: loadedCategories,
-        expenses: expensesData || [],
+        expenses: (expensesData || []) as Expense[],
         isLoading: false,
         syncError: null,
       })
 
       // Setup real-time subscriptions
       get().setupRealtimeSubscriptions()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load data from Supabase:', error)
       set({
         isLoading: false,
@@ -83,7 +118,7 @@ export const useFinanceStore = create((set, get) => ({
           schema: 'public',
           table: 'expenses',
         },
-        async (payload) => {
+        async (payload: any) => {
           if (payload.eventType === 'INSERT') {
             set((state) => {
               // Check if expense already exists (avoid duplicate from optimistic update)
@@ -125,10 +160,12 @@ export const useFinanceStore = create((set, get) => ({
           schema: 'public',
           table: 'categories',
         },
-        async (payload) => {
+        async (payload: any) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             set((state) => {
-              const existing = state.categories.find((c) => c.key === payload.new.key)
+              const existing = state.categories.find(
+                (c) => c.key === payload.new.key
+              )
               if (existing) {
                 return {
                   categories: state.categories.map((c) =>
@@ -142,7 +179,9 @@ export const useFinanceStore = create((set, get) => ({
             })
           } else if (payload.eventType === 'DELETE') {
             set((state) => ({
-              categories: state.categories.filter((c) => c.key !== payload.old.key),
+              categories: state.categories.filter(
+                (c) => c.key !== payload.old.key
+              ),
             }))
           }
         }
@@ -156,19 +195,19 @@ export const useFinanceStore = create((set, get) => ({
   // Cleanup subscriptions
   cleanup: () => {
     const { _expensesChannel, _categoriesChannel } = get()
-    if (_expensesChannel) supabase.removeChannel(_expensesChannel)
-    if (_categoriesChannel) supabase.removeChannel(_categoriesChannel)
+    if (_expensesChannel && supabase) supabase.removeChannel(_expensesChannel)
+    if (_categoriesChannel && supabase) supabase.removeChannel(_categoriesChannel)
   },
 
   // Add expense with Supabase sync
   addExpense: async (expense) => {
-    const expenseData = {
+    const expenseData: Expense = {
       id: expense.id || Date.now(),
       amount: expense.amount,
       person: expense.person,
       category: expense.category,
       note: expense.note || null,
-      date: expense.date.toISOString(),
+      date: expense.date instanceof Date ? expense.date.toISOString() : expense.date,
     }
 
     // Optimistically update UI
@@ -196,7 +235,7 @@ export const useFinanceStore = create((set, get) => ({
       const { error } = await supabase.from('expenses').insert(expenseData)
 
       if (error) throw error
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save expense:', error)
       // Queue for retry
       set((state) => ({
@@ -210,12 +249,12 @@ export const useFinanceStore = create((set, get) => ({
   },
 
   // Add category with Supabase sync
-  addCategory: async (label) => {
+  addCategory: async (label: string) => {
     const key = label.trim().toLowerCase().replace(/\s+/g, '-')
     const existing = get().categories.find((c) => c.key === key)
     if (existing) return
 
-    const categoryData = {
+    const categoryData: Category = {
       key,
       label,
       icon: 'tag',
@@ -248,7 +287,7 @@ export const useFinanceStore = create((set, get) => ({
       })
 
       if (error) throw error
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save category:', error)
       set((state) => ({
         pendingMutations: [
@@ -261,7 +300,7 @@ export const useFinanceStore = create((set, get) => ({
   },
 
   // Delete expense with Supabase sync
-  deleteExpense: async (expenseId) => {
+  deleteExpense: async (expenseId: number) => {
     // Optimistically update UI
     set((state) => ({
       expenses: state.expenses.filter((e) => e.id !== expenseId),
@@ -287,7 +326,7 @@ export const useFinanceStore = create((set, get) => ({
       const { error } = await supabase.from('expenses').delete().eq('id', expenseId)
 
       if (error) throw error
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete expense:', error)
       // Reload expenses to restore state
       get().initialize()
@@ -311,8 +350,8 @@ export const useFinanceStore = create((set, get) => ({
 
     set({ isLoading: true, syncError: null })
 
-    const successful = []
-    const failed = []
+    const successful: PendingMutation[] = []
+    const failed: PendingMutation[] = []
 
     for (const mutation of pending) {
       try {
@@ -327,7 +366,10 @@ export const useFinanceStore = create((set, get) => ({
           if (error) throw error
           successful.push(mutation)
         } else if (mutation.type === 'deleteExpense') {
-          const { error } = await supabase.from('expenses').delete().eq('id', mutation.data.id)
+          const { error } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('id', mutation.data.id)
           if (error) throw error
           successful.push(mutation)
         }
@@ -345,7 +387,7 @@ export const useFinanceStore = create((set, get) => ({
   },
 
   // Update online status
-  setOnlineStatus: (isOnline) => {
+  setOnlineStatus: (isOnline: boolean) => {
     const wasOffline = !get().isOnline
     set({ isOnline })
 
@@ -355,7 +397,7 @@ export const useFinanceStore = create((set, get) => ({
     }
   },
 
-  getMonthlySummary: () => {
+  getMonthlySummary: (): MonthlySummary => {
     const now = new Date()
     const month = now.getMonth()
     const year = now.getFullYear()
@@ -373,10 +415,11 @@ export const useFinanceStore = create((set, get) => ({
       },
       { GH: 0, TM: 0, Both: 0 }
     )
-    const categoryMap = {}
+    const categoryMap: Record<string, number> = {}
     for (const e of monthly) {
       categoryMap[e.category] = (categoryMap[e.category] || 0) + e.amount
     }
     return { total, byPerson, categoryMap, monthly }
   },
 }))
+

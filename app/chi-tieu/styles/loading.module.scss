@@ -1,0 +1,26 @@
+.loadingContainer {
+  width: 100%;
+  min-height: calc(100vh - 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(1200px 400px at -10% 0%, #ffe0e6 0%, transparent 60%),
+    radial-gradient(800px 300px at 110% 10%, #ffeaf0 0%, transparent 60%),
+    #f9fafb;
+  padding: 20px;
+}
+
+.loadingContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loadingText {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0;
+}
+
