@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ConfigProvider,
   Card,
@@ -17,6 +17,7 @@ import {
   Col,
   Modal,
   notification,
+  Popconfirm,
 } from 'antd'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -29,6 +30,7 @@ import {
   Tag as TagIcon,
   Plus,
   PiggyBank,
+  Trash2,
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import { useFinanceStore } from './store'
@@ -100,6 +102,56 @@ export default function FinancePage() {
   const addCategory = useFinanceStore((s) => s.addCategory)
   const expenses = useFinanceStore((s) => s.expenses)
   const addExpense = useFinanceStore((s) => s.addExpense)
+  const deleteExpense = useFinanceStore((s) => s.deleteExpense)
+  const initialize = useFinanceStore((s) => s.initialize)
+  const isLoading = useFinanceStore((s) => s.isLoading)
+  const isOnline = useFinanceStore((s) => s.isOnline)
+  const syncError = useFinanceStore((s) => s.syncError)
+  const pendingMutations = useFinanceStore((s) => s.pendingMutations)
+  const setOnlineStatus = useFinanceStore((s) => s.setOnlineStatus)
+  const cleanup = useFinanceStore((s) => s.cleanup)
+
+  // Initialize store on mount
+  useEffect(() => {
+    initialize()
+
+    // Setup online/offline listeners
+    const handleOnline = () => setOnlineStatus(true)
+    const handleOffline = () => setOnlineStatus(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      cleanup()
+    }
+  }, [initialize, setOnlineStatus, cleanup])
+
+  // Show sync status notifications
+  useEffect(() => {
+    if (syncError) {
+      notification.error({
+        message: 'Lỗi đồng bộ',
+        description: syncError,
+        placement: 'bottomRight',
+        duration: 4,
+      })
+    }
+  }, [syncError])
+
+  useEffect(() => {
+    if (!isOnline && pendingMutations.length > 0) {
+      notification.info({
+        message: 'Đang offline',
+        description: `${pendingMutations.length} thay đổi sẽ được đồng bộ khi online`,
+        placement: 'bottomRight',
+        duration: 3,
+      })
+    }
+  }, [isOnline, pendingMutations.length])
 
   const [open, setOpen] = useState(false)
   const [amountInput, setAmountInput] = useState('')
@@ -127,7 +179,7 @@ export default function FinancePage() {
     WebkitTextFillColor: 'transparent',
   }
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const num = parseInt((amountInput || '0').replace(/\D/g, ''), 10)
     if (!num || num <= 0) {
       notification.warning({
@@ -143,7 +195,7 @@ export default function FinancePage() {
         notification.warning({ message: 'Nhập tên danh mục', placement: 'bottomRight' })
         return
       }
-      addCategory(label)
+      await addCategory(label)
       usedCategory = label.trim().toLowerCase().replace(/\s+/g, '-')
     }
     const amount = num * 1000
@@ -155,7 +207,7 @@ export default function FinancePage() {
       note: note.trim(),
       date: date.toDate(),
     }
-    addExpense(payload)
+    await addExpense(payload)
     setOpen(false)
     setAmountInput('')
     setNote('')
@@ -263,7 +315,31 @@ export default function FinancePage() {
                               <div className="txn-note">{item.note || dayjs(item.date).format('DD/MM')}</div>
                             </div>
                           </Space>
-                          <div className="txn-amt">{formatVND(item.amount)}</div>
+                          <Space>
+                            <div className="txn-amt">{formatVND(item.amount)}</div>
+                            <Popconfirm
+                              title="Xóa chi tiêu này?"
+                              description="Hành động này không thể hoàn tác"
+                              onConfirm={async () => {
+                                await deleteExpense(item.id)
+                                notification.success({
+                                  message: 'Đã xóa chi tiêu',
+                                  placement: 'bottomRight',
+                                })
+                              }}
+                              okText="Xóa"
+                              cancelText="Huỷ"
+                              okButtonProps={{ danger: true }}
+                            >
+                              <Button
+                                type="text"
+                                danger
+                                size="small"
+                                icon={<Trash2 size={14} />}
+                                className="delete-btn"
+                              />
+                            </Popconfirm>
+                          </Space>
                         </List.Item>
                       )
                     }}
