@@ -8,6 +8,7 @@ import TotalSummaryCard from './components/TotalSummaryCard'
 import PersonSplitCard from './components/PersonSplitCard'
 import CategoryChartCard from './components/CategoryChartCard'
 import RecentTransactionsCard from './components/RecentTransactionsCard'
+import DailySpendingCard from './components/DailySpendingCard'
 import AddExpenseModal from './components/AddExpenseModal'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
@@ -123,6 +124,9 @@ export default function FinancePage() {
           </div>
 
           <Row gutter={[16, 16]}>
+            <Col xs={24}>
+              <DailySpendingCard expenses={expenses} />
+            </Col>
             <Col xs={24} md={12}>
               <TotalSummaryCard total={total} />
             </Col>
