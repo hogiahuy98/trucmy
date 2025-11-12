@@ -1,8 +1,10 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { ConfigProvider, Row, Col, notification } from 'antd'
+import { ConfigProvider, Row, Col, notification, Button } from 'antd'
 import { Typography } from 'antd'
+import { useRouter } from 'next/navigation'
+import { BarChart3 } from 'lucide-react'
 import { useFinanceStore } from './store'
 import TotalSummaryCard from './components/TotalSummaryCard'
 import PersonSplitCard from './components/PersonSplitCard'
@@ -24,6 +26,7 @@ const theme = {
 }
 
 export default function FinancePage() {
+  const router = useRouter()
   const categories = useFinanceStore((s) => s.categories)
   const addCategory = useFinanceStore((s) => s.addCategory)
   const expenses = useFinanceStore((s) => s.expenses)
@@ -118,9 +121,26 @@ export default function FinancePage() {
       <div className={styles.financeApp}>
         <div className={styles.financeContainer}>
           <div className={styles.financeHeader}>
-            <Title level={2} className={styles.titleGradient}>
-              Quản lý chi tiêu
-            </Title>
+            <div className="flex items-center justify-between w-full">
+              <Title level={2} className={styles.titleGradient}>
+                Quản lý chi tiêu
+              </Title>
+              <Button
+                type="primary"
+                icon={<BarChart3 size={16} />}
+                onClick={() => router.push('/chi-tieu/thong-ke')}
+                className="flex items-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #ff4b6e, #ff93a9)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  height: '40px',
+                  fontWeight: 600,
+                }}
+              >
+                Thống kê
+              </Button>
+            </div>
           </div>
 
           <Row gutter={[16, 16]}>

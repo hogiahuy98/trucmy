@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { Card, Space, Typography } from 'antd'
-import { Calendar } from 'lucide-react'
+import { CalendarDays } from 'lucide-react'
 import { formatVND } from '../utils'
 import type { Expense } from '../types'
 import dayjs from 'dayjs'
@@ -42,7 +42,7 @@ export default function DailySpendingCard({ expenses }: DailySpendingCardProps) 
     >
       <Space direction="vertical" size={8} className="w-full">
         <div className="flex items-center gap-2">
-          <Calendar size={18} className="text-[#ff4b6e]" />
+          <CalendarDays size={18} className="text-[#ff4b6e]" />
           <Text type="secondary" className="text-sm font-medium">
             Chi tiêu hôm nay
           </Text>
