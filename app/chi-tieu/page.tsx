@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { ConfigProvider, notification, Button } from 'antd'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import { BarChart3 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -15,16 +16,6 @@ import AddExpenseModal from './components/AddExpenseModal'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
 
-
-const theme = {
-  token: {
-    colorPrimary: '#A3C68C', // avocado green
-    borderRadius: 18,
-    colorBgContainer: '#FAF8F4', // cream
-    colorText: '#4A4F3B', // dark olive
-    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", Roboto, sans-serif',
-  },
-}
 
 export default function FinancePage() {
   const router = useRouter()
@@ -78,22 +69,18 @@ export default function FinancePage() {
   // Show sync status notifications
   useEffect(() => {
     if (syncError) {
-      notification.error({
-        message: 'Lỗi đồng bộ',
+      toast.error('Lỗi đồng bộ', {
         description: syncError,
-        placement: 'bottomRight',
-        duration: 4,
+        duration: 4000,
       })
     }
   }, [syncError])
 
   useEffect(() => {
     if (!isOnline && pendingMutations.length > 0) {
-      notification.info({
-        message: 'Đang offline',
+      toast.info('Đang offline', {
         description: `${pendingMutations.length} thay đổi sẽ được đồng bộ khi online`,
-        placement: 'bottomRight',
-        duration: 3,
+        duration: 3000,
       })
     }
   }, [isOnline, pendingMutations.length])
@@ -118,7 +105,6 @@ export default function FinancePage() {
   }
 
   return (
-    <ConfigProvider theme={theme}>
       <div className={styles.financeApp}>
         <div className={styles.financeContainer}>
           {/* iOS Large Title */}
@@ -128,15 +114,15 @@ export default function FinancePage() {
             transition={{ duration: 0.2 }}
             className={styles.iosHeader}
           >
-            <h1 className={styles.iosLargeTitle}>Chi tiêu của tụi mình 🥑</h1>
-            <Button
-              type="text"
-              icon={<BarChart3 size={18} />}
-              onClick={() => router.push('/chi-tieu/thong-ke')}
+            <h1 className={styles.iosLargeTitle}>Chi tiêu Huy My 🥑</h1>
+              <Button
+              variant="ghost"
+                onClick={() => router.push('/chi-tieu/thong-ke')}
               className={styles.iosHeaderButton}
-            >
-              Thống kê
-            </Button>
+              >
+              <BarChart3 size={18} />
+              <span>Thống kê</span>
+              </Button>
           </motion.div>
 
           {/* Hero Card - Total Summary */}
@@ -156,7 +142,7 @@ export default function FinancePage() {
             transition={{ duration: 0.22, delay: 0.1 }}
             style={{ marginBottom: '20px' }}
           >
-            <DailySpendingCard expenses={expenses} />
+              <DailySpendingCard expenses={expenses} />
           </motion.div>
 
           {/* Category Chips - Horizontal Scroll */}
@@ -167,10 +153,10 @@ export default function FinancePage() {
             style={{ marginBottom: '20px' }}
           >
             <CategoryChips
-              chartData={chartData}
-              categories={categories}
-              total={total}
-            />
+                chartData={chartData}
+                categories={categories}
+                total={total}
+              />
           </motion.div>
 
           {/* Gentle Insights */}
@@ -190,11 +176,11 @@ export default function FinancePage() {
             transition={{ duration: 0.22, delay: 0.25 }}
             style={{ marginBottom: '20px' }}
           >
-            <RecentTransactionsCard
-              expenses={expenses}
-              categories={categories}
-              onDelete={deleteExpense}
-            />
+              <RecentTransactionsCard
+                expenses={expenses}
+                categories={categories}
+                onDelete={deleteExpense}
+              />
           </motion.div>
 
           <button className={styles.fab} onClick={() => setOpen(true)}>
@@ -212,7 +198,6 @@ export default function FinancePage() {
           <div className={styles.footer}>GH × TM — cùng nhau quản lý chi tiêu</div>
         </div>
       </div>
-    </ConfigProvider>
   )
 }
 

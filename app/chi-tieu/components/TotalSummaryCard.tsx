@@ -35,7 +35,7 @@ export default function TotalSummaryCard({ total }: TotalSummaryCardProps) {
           lineHeight: '1.1',
         }}
       >
-        {formatVND(total)}
+          {formatVND(total)}
       </div>
     </div>
   )

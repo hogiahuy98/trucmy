@@ -1,9 +1,7 @@
 'use client'
 
-import { Card, Typography } from 'antd'
+import { Card } from '@/components/ui/card'
 import { motion } from 'framer-motion'
-
-const { Text } = Typography
 
 interface PersonSplitCardProps {
   ghPct: number
@@ -13,15 +11,13 @@ interface PersonSplitCardProps {
 export default function PersonSplitCard({ ghPct, tmPct }: PersonSplitCardProps) {
   return (
     <Card
-      className="rounded-2xl border-0 shadow-sm"
       style={{
         backgroundColor: '#D8E2D0', // sage
-        border: 'none',
-        borderRadius: '18px',
+        padding: '20px',
         boxShadow: '0 2px 12px rgba(111, 143, 95, 0.08)',
       }}
     >
-      <Text
+      <div
         style={{
           color: '#8B8F7A', // olive grey
           fontSize: '13px',
@@ -29,7 +25,7 @@ export default function PersonSplitCard({ ghPct, tmPct }: PersonSplitCardProps) 
         }}
       >
         Chia sẻ chi tiêu
-      </Text>
+      </div>
       <div
         className="flex w-full h-4 rounded-full overflow-hidden mt-3"
         style={{ backgroundColor: '#EFECE6' }} // warm linen

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Zap } from 'lucide-react'
 import type { Expense } from '../types'
 import dayjs from 'dayjs'
 
@@ -45,9 +45,13 @@ export default function InsightsCard({ expenses }: InsightsCardProps) {
     })
 
     // Find category with biggest change
-    let biggestChange: { category: string; change: number } | null = null
-    Object.keys(thisWeekByCategory).forEach((cat) => {
-      const thisWeek = thisWeekByCategory[cat]
+    interface CategoryChange {
+      category: string
+      change: number
+    }
+    let biggestChange: CategoryChange | null = null
+    for (const cat of Object.keys(thisWeekByCategory)) {
+      const thisWeek = thisWeekByCategory[cat]!
       const lastWeek = lastWeekByCategory[cat] || 0
       if (lastWeek > 0) {
         const change = ((thisWeek - lastWeek) / lastWeek) * 100
@@ -55,27 +59,27 @@ export default function InsightsCard({ expenses }: InsightsCardProps) {
           biggestChange = { category: cat, change }
         }
       }
-    })
+    }
 
-    // Generate insight
+    // Generate insight - Gen Z tone
     if (thisWeekTotal === 0 && lastWeekTotal === 0) {
       return {
-        text: 'Hai tụi mình chưa có chi tiêu tuần này. Tiếp tục giữ thói quen tốt nhé',
+        text: 'Chưa xài đồng nào cả! Zero waste luôn á 🔥',
         emoji: '✨',
       }
     }
 
     if (thisWeekTotal === 0) {
       return {
-        text: 'Tuần này hai tụi mình chưa chi tiêu gì — rất tốt',
-        emoji: '🧡',
+        text: 'Tuần này chưa chi gì hết — tiết kiệm xỉu lunnnn',
+        emoji: '💪',
       }
     }
 
     if (lastWeekTotal === 0) {
       return {
-        text: 'Tuần này hai tụi mình bắt đầu ghi lại chi tiêu. Cùng nhau quản lý tốt nhé',
-        emoji: '💛',
+        text: 'Bắt đầu track chi tiêu rồi đó! Cùng nhau quản lý xịn xò nàooo',
+        emoji: '🚀',
       }
     }
 
@@ -83,31 +87,31 @@ export default function InsightsCard({ expenses }: InsightsCardProps) {
 
     if (Math.abs(totalChange) < 5) {
       return {
-        text: 'Tuần này hai tụi mình chi tiêu khá ổn định — giữ nhịp độ tốt',
-        emoji: '🧡',
+        text: 'Chi tiêu stable vãi! Ổn áp như này là chill nhất 💯',
+        emoji: '😎',
       }
     }
 
     if (totalChange < -5) {
-      const categoryText = biggestChange && biggestChange.change < -10
-        ? ` — ${biggestChange.category} giảm nhẹ`
+      const categoryText = (biggestChange?.change ?? 0) < -10
+        ? ` — ${biggestChange?.category ?? ''} tiết kiệm được đấy!`
         : ''
       return {
-        text: `Tuần này hai tụi mình chi tiêu giảm ${Math.round(Math.abs(totalChange))}%${categoryText}`,
-        emoji: '🧡',
+        text: `Giảm được ${Math.round(Math.abs(totalChange))}% tuần này đó${categoryText}`,
+        emoji: '🔥',
       }
     }
 
     if (totalChange > 5 && totalChange < 15) {
       return {
-        text: 'Tuần này chi tiêu tăng nhẹ — có thể do nhu cầu tạm thời',
-        emoji: '💛',
+        text: 'Tuần này xài nhiều hơn tí — có lẽ cần mua gì đó hả?',
+        emoji: '👀',
       }
     }
 
     return {
-      text: 'Hai tụi mình đang quản lý chi tiêu cùng nhau — tiếp tục nhé',
-      emoji: '💛',
+      text: 'Đang track chi tiêu cùng nhau nèeee — keep it up!',
+      emoji: '✌️',
     }
   }, [expenses])
 
@@ -133,7 +137,7 @@ export default function InsightsCard({ expenses }: InsightsCardProps) {
             flexShrink: 0,
           }}
         >
-          <Sparkles size={20} style={{ color: '#A3C68C', strokeWidth: 1.5 }} />
+          <Zap size={20} style={{ color: '#A3C68C', strokeWidth: 1.5 }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div

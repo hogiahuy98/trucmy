@@ -1,6 +1,18 @@
 'use client'
 
-import { Button, Popconfirm } from 'antd'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Trash2 } from 'lucide-react'
 import dayjs from 'dayjs'
 import {
@@ -12,11 +24,11 @@ import {
   Utensils,
   Tag as TagIcon,
 } from 'lucide-react'
-import { notification } from 'antd'
+import { toast } from 'sonner'
 import type { Category, Expense } from '../types'
 import { formatVND } from '../utils'
 
-const iconMap: Record<string, React.ComponentType<{ size: number }>> = {
+const iconMap: Record<string, React.ComponentType<any>> = {
   coffee: Coffee,
   home: Home,
   'shopping-cart': ShoppingCart,
@@ -37,12 +49,12 @@ export default function RecentTransactionsCard({
   categories,
   onDelete,
 }: RecentTransactionsCardProps) {
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+
   const handleDelete = async (id: number) => {
     await onDelete(id)
-    notification.success({
-      message: 'Đã xóa chi tiêu',
-      placement: 'bottomRight',
-    })
+    setDeleteId(null)
+    toast.success('Đã xóa chi tiêu')
   }
 
   if (expenses.length === 0) {
@@ -144,8 +156,8 @@ export default function RecentTransactionsCard({
                       color: '#4A4F3B',
                     }}
                   >
-                    {cat?.label || item.category}
-                  </span>
+                      {cat?.label || item.category}
+                    </span>
                   <span style={{ color: '#8B8F7A', fontSize: '14px' }}>•</span>
                   <span
                     style={{
@@ -156,7 +168,7 @@ export default function RecentTransactionsCard({
                   >
                     {item.person}
                   </span>
-                </div>
+                  </div>
                 <div
                   style={{
                     fontSize: '14px',
@@ -176,31 +188,40 @@ export default function RecentTransactionsCard({
                 >
                   {formatVND(item.amount)}
                 </div>
-                <Popconfirm
-                  title="Xóa chi tiêu này?"
-                  description="Hành động này không thể hoàn tác"
-                  onConfirm={() => handleDelete(item.id)}
-                  okText="Xóa"
-                  cancelText="Huỷ"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button
-                    type="text"
-                    danger
-                    size="small"
-                    icon={<Trash2 size={16} strokeWidth={1.5} />}
-                    style={{
-                      opacity: 0.5,
-                      width: '32px',
-                      height: '32px',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    className="hover:opacity-100"
-                  />
-                </Popconfirm>
+                <AlertDialog open={deleteId === item.id} onOpenChange={(open) => !open && setDeleteId(null)}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setDeleteId(item.id)}
+                      style={{
+                        opacity: 0.5,
+                        width: '32px',
+                        height: '32px',
+                      }}
+                      className="hover:opacity-100"
+                    >
+                      <Trash2 size={16} strokeWidth={1.5} />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Xóa chi tiêu này?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Hành động này không thể hoàn tác
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(item.id)}
+                        className="bg-red-500 hover:bg-red-600"
+                      >
+                        Xóa
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )

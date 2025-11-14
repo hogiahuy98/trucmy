@@ -1,6 +1,6 @@
 'use client'
 
-import { Card } from 'antd'
+import { Card } from '@/components/ui/card'
 import DonutChart from './DonutChart'
 import type { Category } from '../types'
 
@@ -19,11 +19,9 @@ export default function CategoryChartCard({
 }: CategoryChartCardProps) {
   return (
     <Card
-      className="rounded-2xl border-0 shadow-sm"
       style={{
         backgroundColor: '#EFECE6', // warm linen
-        border: 'none',
-        borderRadius: '18px',
+        padding: '20px',
         boxShadow: '0 2px 12px rgba(111, 143, 95, 0.08)',
       }}
     >

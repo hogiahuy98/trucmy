@@ -1,11 +1,11 @@
-import 'antd/dist/reset.css'
 import './globals.css'
+import { Toaster } from '@/components/ui/toaster'
 
 export const metadata = {
   title: 'Score H&M',
   description: 'Theo dõi điểm yêu thương giữa H&M với Next.js',
   manifest: '/manifest.json',
-  themeColor: '#ff4b6e',
+  themeColor: '#FAF8F4',
   icons: {
     icon: '/icons/icon-192.svg',
     shortcut: '/icons/icon-192.svg',
@@ -16,7 +16,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster />
+      </body>
     </html>
   )
 }

@@ -1,22 +1,20 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Card } from '@/components/ui/card'
 import {
-  ConfigProvider,
   Table,
-  Card,
-  Typography,
-  Space,
-  Tag,
-  DatePicker,
-  Select,
-  Input,
-  Button,
-} from 'antd'
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
-import { SearchOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
+import { ArrowLeft, Search, RotateCcw } from 'lucide-react'
 import dayjs, { Dayjs } from 'dayjs'
 import { useFinanceStore } from '../store'
 import LoadingIndicator from '../components/LoadingIndicator'
@@ -33,16 +31,6 @@ import {
   Tag as TagIcon,
 } from 'lucide-react'
 
-const { Title } = Typography
-const { RangePicker } = DatePicker
-
-const theme = {
-  token: {
-    colorPrimary: '#ff4b6e',
-    borderRadius: 16,
-    colorBgContainer: '#ffffff',
-  },
-}
 
 const iconMap: Record<string, React.ComponentType<{ size: number }>> = {
   coffee: Coffee,
@@ -65,11 +53,15 @@ export default function ThongKePage() {
   const [hasInitialized, setHasInitialized] = useState(false)
 
   // Filter states
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+  const [startDate, setStartDate] = useState<Date | undefined>()
+  const [endDate, setEndDate] = useState<Date | undefined>()
   const [selectedPerson, setSelectedPerson] = useState<string>('all')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchText, setSearchText] = useState('')
-  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [sortField, setSortField] = useState<string>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // Initialize store on mount
   useEffect(() => {
@@ -92,9 +84,9 @@ export default function ThongKePage() {
     let filtered = [...expenses]
 
     // Filter by date range
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      const start = dateRange[0].startOf('day')
-      const end = dateRange[1].endOf('day')
+    if (startDate && endDate) {
+      const start = dayjs(startDate).startOf('day')
+      const end = dayjs(endDate).endOf('day')
       filtered = filtered.filter((e) => {
         const expenseDate = dayjs(e.date)
         return expenseDate.isAfter(start) && expenseDate.isBefore(end)
@@ -122,12 +114,19 @@ export default function ThongKePage() {
       })
     }
 
-    return filtered.sort((a, b) => {
-      const dateA = new Date(a.date).getTime()
-      const dateB = new Date(b.date).getTime()
-      return dateB - dateA // Newest first
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let compareResult = 0
+      if (sortField === 'date') {
+        compareResult = new Date(a.date).getTime() - new Date(b.date).getTime()
+      } else if (sortField === 'amount') {
+        compareResult = a.amount - b.amount
+      }
+      return sortOrder === 'asc' ? compareResult : -compareResult
     })
-  }, [expenses, dateRange, selectedPerson, selectedCategory, searchText, categories])
+
+    return filtered
+  }, [expenses, startDate, endDate, selectedPerson, selectedCategory, searchText, categories, sortField, sortOrder])
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -145,13 +144,25 @@ export default function ThongKePage() {
   }, [filteredExpenses])
 
   const handleReset = () => {
-    setDateRange(null)
+    setStartDate(undefined)
+    setEndDate(undefined)
     setSelectedPerson('all')
     setSelectedCategory('all')
     setSearchText('')
+    setCurrentPage(1)
   }
 
-  const columns: ColumnsType<Expense> = [
+  // Paginated data
+  const paginatedExpenses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    const end = start + pageSize
+    return filteredExpenses.slice(start, end)
+  }, [filteredExpenses, currentPage, pageSize])
+
+  const totalPages = Math.ceil(filteredExpenses.length / pageSize)
+
+  // Remove old column definitions - we'll use them inline
+  /* const columns: ColumnsType<Expense> = [
     {
       title: 'Ngày',
       dataIndex: 'date',
@@ -236,7 +247,7 @@ export default function ThongKePage() {
         <span className="text-slate-600">{note || '-'}</span>
       ),
     },
-  ]
+  ] */
 
   // Weekly aggregation
   interface WeeklyRow {
@@ -284,7 +295,8 @@ export default function ThongKePage() {
     )
   }, [filteredExpenses])
 
-  const weeklyColumns: ColumnsType<WeeklyRow> = [
+  // Remove old weekly column definitions
+  /* const weeklyColumns: ColumnsType<WeeklyRow> = [
     {
       title: 'Tuần',
       dataIndex: 'weekLabel',
@@ -336,7 +348,7 @@ export default function ThongKePage() {
       align: 'right',
       sorter: (a, b) => a.count - b.count,
     },
-  ]
+  ] */
 
   // Show loading indicator on first load
   if (isInitialLoad && (isLoading || !hasInitialized)) {
@@ -344,167 +356,263 @@ export default function ThongKePage() {
   }
 
   return (
-    <ConfigProvider theme={theme}>
-      <div className={styles.financeApp}>
+      <div className={styles.financeApp} style={{ background: '#FAF8F4' }}>
         <div className={styles.financeContainer}>
           <div className={styles.financeHeader}>
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-4">
                 <Button
-                  type="text"
-                  icon={<ArrowLeft size={18} />}
+                  variant="ghost"
                   onClick={() => router.push('/chi-tieu')}
-                  className="flex items-center"
-                  style={{
-                    color: '#ff4b6e',
-                    padding: '4px 8px',
-                  }}
+                  className="flex items-center gap-2"
                 >
-                  Quay lại
+                  <ArrowLeft size={18} />
+                  <span>Quay lại</span>
                 </Button>
-                <Title level={2} className={styles.titleGradient}>
+                <h2 className={styles.titleGradient} style={{ fontSize: '24px', fontWeight: 600 }}>
                   Thống kê chi tiêu
-                </Title>
+                </h2>
               </div>
             </div>
           </div>
 
           {/* Summary Cards */}
           <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="rounded-2xl border border-slate-100 shadow-md">
-              <div className="text-sm text-slate-600 mb-1">Tổng chi tiêu</div>
-              <div className="text-2xl font-bold text-slate-900">
+            <Card style={{ padding: '20px', backgroundColor: '#EFECE6' }}>
+              <div className="text-sm text-olive-grey mb-1">Tổng chi tiêu</div>
+              <div className="text-2xl font-bold text-dark-olive">
                 {formatVND(totals.total)}
               </div>
             </Card>
-            <Card className="rounded-2xl border border-slate-100 shadow-md">
-              <div className="text-sm text-slate-600 mb-1">GH</div>
-              <div className="text-2xl font-bold text-blue-600">
+            <Card style={{ padding: '20px', backgroundColor: '#D8E2D0' }}>
+              <div className="text-sm text-olive-grey mb-1">GH</div>
+              <div className="text-2xl font-bold text-avocado-green">
                 {formatVND(totals.byPerson.GH)}
-
               </div>
             </Card>
-            <Card className="rounded-2xl border border-slate-100 shadow-md">
-              <div className="text-sm text-slate-600 mb-1">TM</div>
-              <div className="text-2xl font-bold text-purple-600">
+            <Card style={{ padding: '20px', backgroundColor: '#D8E2D0' }}>
+              <div className="text-sm text-olive-grey mb-1">TM</div>
+              <div className="text-2xl font-bold text-deep-avocado">
                 {formatVND(totals.byPerson.TM)}
               </div>
             </Card>
-            <Card className="rounded-2xl border border-slate-100 shadow-md">
-              <div className="text-sm text-slate-600 mb-1">Cả 2</div>
-              <div className="text-2xl font-bold text-pink-600">
+            <Card style={{ padding: '20px', backgroundColor: '#D8E2D0' }}>
+              <div className="text-sm text-olive-grey mb-1">Cả 2</div>
+              <div className="text-2xl font-bold text-coral-soft">
                 {formatVND(totals.byPerson.Both)}
               </div>
             </Card>
           </div>
 
           {/* Filters */}
-          <Card className="rounded-2xl border border-slate-100 shadow-md mb-6">
-            <Space direction="vertical" size="middle" className="w-full">
-              <div className="text-sm font-medium text-slate-700 mb-2">Bộ lọc</div>
+          <Card style={{ padding: '20px', backgroundColor: '#EFECE6', marginBottom: '24px' }}>
+            <div className="flex flex-col gap-4">
+              <div className="text-sm font-medium text-dark-olive mb-2">Bộ lọc</div>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Khoảng thời gian</div>
-                  <RangePicker
-                    value={dateRange}
-                    onChange={(dates) => setDateRange(dates)}
-                    format="DD/MM/YYYY"
-                    className="w-full"
-                    placeholder={['Từ ngày', 'Đến ngày']}
+                  <label className="text-xs text-olive-grey mb-1 block">Từ ngày</label>
+                  <Input
+                    type="date"
+                    value={startDate ? dayjs(startDate).format('YYYY-MM-DD') : ''}
+                    onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
                   />
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Người chi</div>
+                  <label className="text-xs text-olive-grey mb-1 block">Đến ngày</label>
+                  <Input
+                    type="date"
+                    value={endDate ? dayjs(endDate).format('YYYY-MM-DD') : ''}
+                    onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : undefined)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-olive-grey mb-1 block">Người chi</label>
                   <Select
                     value={selectedPerson}
-                    onChange={setSelectedPerson}
-                    className="w-full"
-                    options={[
-                      { label: 'Tất cả', value: 'all' },
-                      { label: 'GH', value: 'GH' },
-                      { label: 'TM', value: 'TM' },
-                      { label: 'Cả 2', value: 'Both' },
-                    ]}
-                  />
+                    onChange={(e) => setSelectedPerson(e.target.value)}
+                  >
+                    <option value="all">Tất cả</option>
+                    <option value="GH">GH</option>
+                    <option value="TM">TM</option>
+                    <option value="Both">Cả 2</option>
+                  </Select>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Danh mục</div>
+                  <label className="text-xs text-olive-grey mb-1 block">Danh mục</label>
                   <Select
                     value={selectedCategory}
-                    onChange={setSelectedCategory}
-                    className="w-full"
-                    options={[
-                      { label: 'Tất cả', value: 'all' },
-                      ...categories.map((c) => ({
-                        label: c.label,
-                        value: c.key,
-                      })),
-                    ]}
-                  />
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                  >
+                    <option value="all">Tất cả</option>
+                    {categories.map((c) => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </Select>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Tìm kiếm</div>
+                  <label className="text-xs text-olive-grey mb-1 block">Tìm kiếm</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-olive-grey" />
                   <Input
                     placeholder="Tìm trong ghi chú..."
-                    prefix={<SearchOutlined className="text-slate-400" />}
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    allowClear
+                      className="pl-10"
                   />
+                  </div>
                 </div>
               </div>
               <div>
                 <Button
-                  icon={<ReloadOutlined />}
                   onClick={handleReset}
-                  type="default"
+                  variant="outline"
+                  className="flex items-center gap-2"
                 >
-                  Đặt lại bộ lọc
+                  <RotateCcw size={16} />
+                  <span>Đặt lại bộ lọc</span>
                 </Button>
               </div>
-            </Space>
+            </div>
           </Card>
 
           {/* Weekly Statistics */}
-          <Card className="rounded-2xl border border-slate-100 shadow-md mb-6">
-            <div className="mb-3 text-sm font-semibold text-slate-700">Thống kê theo tuần</div>
-            <Table
-              columns={weeklyColumns}
-              dataSource={weeklyRows}
-              rowKey="key"
-              pagination={false}
-              size="small"
-              className="[&_.ant-table-thead>tr>th]:bg-slate-50 [&_.ant-table-thead>tr>th]:font-semibold"
-            />
+          <Card style={{ padding: '20px', backgroundColor: '#EFECE6', marginBottom: '24px' }}>
+            <div className="mb-3 text-sm font-semibold text-dark-olive">Thống kê theo tuần</div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tuần</TableHead>
+                    <TableHead className="text-right">Tổng</TableHead>
+                    <TableHead className="text-right">GH</TableHead>
+                    <TableHead className="text-right">TM</TableHead>
+                    <TableHead className="text-right">Cả 2</TableHead>
+                    <TableHead className="text-right">Giao dịch</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {weeklyRows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell className="font-medium">{row.weekLabel}</TableCell>
+                      <TableCell className="text-right font-semibold text-dark-olive">
+                        {formatVND(row.total)}
+                      </TableCell>
+                      <TableCell className="text-right text-avocado-green">
+                        {formatVND(row.GH)}
+                      </TableCell>
+                      <TableCell className="text-right text-deep-avocado">
+                        {formatVND(row.TM)}
+                      </TableCell>
+                      <TableCell className="text-right text-coral-soft">
+                        {formatVND(row.Both)}
+                      </TableCell>
+                      <TableCell className="text-right">{row.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </Card>
 
           {/* Table */}
-          <Card className="rounded-2xl border border-slate-100 shadow-md">
-            <div className="mb-4 text-sm text-slate-600">
+          <Card style={{ padding: '20px', backgroundColor: '#EFECE6' }}>
+            <div className="mb-4 text-sm text-olive-grey">
               Hiển thị {filteredExpenses.length} / {expenses.length} giao dịch
             </div>
-            <Table
-              columns={columns}
-              dataSource={filteredExpenses}
-              rowKey="id"
-              pagination={{
-                pageSize: pageSize,
-                showSizeChanger: true,
-                showTotal: (total) => `Tổng ${total} giao dịch`,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                onShowSizeChange(current, size) {
-                  setPageSize(size)
-                },
-              }}
-              scroll={{ x: 800 }}
-              className="[&_.ant-table-thead>tr>th]:bg-slate-50 [&_.ant-table-thead>tr>th]:font-semibold"
-            />
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày</TableHead>
+                    <TableHead className="text-right">Số tiền</TableHead>
+                    <TableHead>Người chi</TableHead>
+                    <TableHead>Danh mục</TableHead>
+                    <TableHead>Ghi chú</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedExpenses.map((expense) => {
+                    const cat = categories.find((c) => c.key === expense.category)
+                    const Icon = iconMap[cat?.icon || 'tag'] || TagIcon
+                    const color = cat?.color || '#A3C68C'
+                    const label = cat?.label || expense.category
+                    
+                    return (
+                      <TableRow key={expense.id}>
+                        <TableCell className="font-medium">
+                          {dayjs(expense.date).format('DD/MM/YYYY')}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-dark-olive">
+                          {formatVND(expense.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className="px-2 py-1 rounded text-xs font-medium"
+                            style={{
+                              backgroundColor: expense.person === 'GH' ? '#A3C68C20' :
+                                              expense.person === 'TM' ? '#6F8F5F20' : '#E69D8720',
+                              color: expense.person === 'GH' ? '#A3C68C' :
+                                     expense.person === 'TM' ? '#6F8F5F' : '#E69D87',
+                            }}
+                          >
+                            {expense.person === 'Both' ? 'Cả 2' : expense.person}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{
+                                backgroundColor: `${color}20`,
+                                color: color,
+                              }}
+                            >
+                              <Icon size={14} />
+                            </div>
+                            <span>{label}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-olive-grey">
+                          {expense.note || '-'}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-sm text-olive-grey">
+                  Trang {currentPage} / {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
-          <div className={styles.footer}>H&M — build, measure, save 💰</div>
+          <div className={styles.footer}>GH × TM — cùng nhau quản lý chi tiêu</div>
         </div>
       </div>
-    </ConfigProvider>
   )
 }
 
