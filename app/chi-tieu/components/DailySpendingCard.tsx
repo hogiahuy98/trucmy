@@ -1,13 +1,10 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Card, Space, Typography } from 'antd'
 import { CalendarDays } from 'lucide-react'
 import { formatVND } from '../utils'
 import type { Expense } from '../types'
 import dayjs from 'dayjs'
-
-const { Text, Title } = Typography
 
 interface DailySpendingCardProps {
   expenses: Expense[]
@@ -32,40 +29,62 @@ export default function DailySpendingCard({ expenses }: DailySpendingCardProps) 
   }, [expenses])
 
   return (
-    <Card
-      className="rounded-2xl border-2 shadow-lg"
+    <div
       style={{
-        borderColor: '#ff4b6e',
-        background: 'linear-gradient(135deg, #fff5f7 0%, #ffe0e6 100%)',
-        boxShadow: '0 8px 24px rgba(255, 75, 110, 0.2)',
+        backgroundColor: '#EFECE6', // warm linen
+        borderRadius: '20px',
+        padding: '20px',
+        boxShadow: '0 2px 16px rgba(111, 143, 95, 0.08)',
       }}
     >
-      <Space direction="vertical" size={8} className="w-full">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={18} className="text-[#ff4b6e]" />
-          <Text type="secondary" className="text-sm font-medium">
-            Chi tiêu hôm nay
-          </Text>
-        </div>
-        <Title
-          level={2}
-          className="!m-0 !text-3xl !font-bold"
-          style={{ color: '#ff4b6e' }}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+        <CalendarDays
+          size={18}
+          style={{ color: '#A3C68C', strokeWidth: 1.5 }}
+        />
+        <div
+          style={{
+            color: '#8B8F7A',
+            fontSize: '14px',
+            fontWeight: 500,
+          }}
         >
-          {formatVND(todayTotal)}
-        </Title>
-        {todayCount > 0 && (
-          <Text type="secondary" className="text-xs">
-            {todayCount} {todayCount === 1 ? 'giao dịch' : 'giao dịch'}
-          </Text>
-        )}
-        {todayTotal === 0 && (
-          <Text type="secondary" className="text-xs italic">
-            Chưa có chi tiêu nào hôm nay 🎉
-          </Text>
-        )}
-      </Space>
-    </Card>
+          Chi tiêu hôm nay
+        </div>
+      </div>
+      <div
+        style={{
+          color: '#4A4F3B',
+          fontSize: '28px',
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          marginBottom: '4px',
+        }}
+      >
+        {formatVND(todayTotal)}
+      </div>
+      {todayCount > 0 && (
+        <div
+          style={{
+            color: '#8B8F7A',
+            fontSize: '14px',
+          }}
+        >
+          {todayCount} {todayCount === 1 ? 'giao dịch' : 'giao dịch'}
+        </div>
+      )}
+      {todayTotal === 0 && (
+        <div
+          style={{
+            color: '#8B8F7A',
+            fontSize: '14px',
+            fontStyle: 'italic',
+          }}
+        >
+          Chưa có chi tiêu nào hôm nay
+        </div>
+      )}
+    </div>
   )
 }
 

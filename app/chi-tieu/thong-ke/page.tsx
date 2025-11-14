@@ -381,6 +381,7 @@ export default function ThongKePage() {
               <div className="text-sm text-slate-600 mb-1">GH</div>
               <div className="text-2xl font-bold text-blue-600">
                 {formatVND(totals.byPerson.GH)}
+
               </div>
             </Card>
             <Card className="rounded-2xl border border-slate-100 shadow-md">

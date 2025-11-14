@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  background: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  background: #FAF8F4; /* cream */
+  color: #4A4F3B; /* dark olive */
   min-height: 100vh;
   overflow-x: hidden;
+  font-size: 16px; /* iOS body text size */
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .app {
@@ -48,10 +59,7 @@ body {
   justify-content: center;
   align-items: flex-start;
   position: relative;
-  background:
-    radial-gradient(1200px 400px at -10% 0%, #ffe0e6 0%, transparent 60%),
-    radial-gradient(800px 300px at 110% 10%, #ffeaf0 0%, transparent 60%),
-    #f9fafb;
+  background: #FAF8F4; /* cream - warm, calm base */
 }
 
 .finance-container {

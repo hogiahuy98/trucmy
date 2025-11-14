@@ -18,8 +18,25 @@ export default function CategoryChartCard({
   total,
 }: CategoryChartCardProps) {
   return (
-    <Card className="rounded-2xl border border-slate-100 shadow-md">
-      <div className="text-sm font-medium text-slate-600 mb-4">Phân bổ danh mục</div>
+    <Card
+      className="rounded-2xl border-0 shadow-sm"
+      style={{
+        backgroundColor: '#EFECE6', // warm linen
+        border: 'none',
+        borderRadius: '18px',
+        boxShadow: '0 2px 12px rgba(111, 143, 95, 0.08)',
+      }}
+    >
+      <div
+        style={{
+          color: '#8B8F7A', // olive grey
+          fontSize: '13px',
+          fontWeight: 500,
+          marginBottom: '16px',
+        }}
+      >
+        Phân bổ danh mục
+      </div>
       <div className="flex items-center gap-6">
         <DonutChart data={chartData} colors={colorPalette} />
         <div className="flex flex-col gap-2">
@@ -33,11 +50,25 @@ export default function CategoryChartCard({
             return (
               <div key={key} className="flex items-center gap-2">
                 <span
-                  className="w-2 h-2 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full"
                   style={{ backgroundColor: cat.color }}
                 />
-                <span className="text-sm text-slate-700">{cat.label}</span>
-                <span className="text-sm font-medium text-slate-900 ml-auto">
+                <span
+                  style={{
+                    fontSize: '13px',
+                    color: '#4A4F3B', // dark olive
+                  }}
+                >
+                  {cat.label}
+                </span>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: '#4A4F3B', // dark olive
+                    marginLeft: 'auto',
+                  }}
+                >
                   {pct}%
                 </span>
               </div>

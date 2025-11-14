@@ -27,7 +27,7 @@ export default function DonutChart({ data, colors }: DonutChartProps) {
         <circle
           r={radius}
           fill="transparent"
-          stroke="#f1f5f9"
+          stroke="#D8E2D0"
           strokeWidth={20}
         />
         {segments.map((s) => (
@@ -45,7 +45,7 @@ export default function DonutChart({ data, colors }: DonutChartProps) {
             transition={{ type: 'spring', stiffness: 120, damping: 20 }}
           />
         ))}
-        <circle r={34} fill="#ffffff" />
+        <circle r={34} fill="#FAF8F4" />
       </g>
     </svg>
   )

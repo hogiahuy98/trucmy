@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, DatePicker, Input, Modal, Radio, Space, Typography } from 'antd'
+import { Button, DatePicker, Input, Radio, Typography } from 'antd'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Coffee,
@@ -19,7 +19,7 @@ import type { Category } from '../types'
 
 const { Text } = Typography
 
-const iconMap: Record<string, React.ComponentType<{ size: number }>> = {
+const iconMap: Record<string, React.ComponentType<{ size: number, strokeWidth: number }>> = {
   coffee: Coffee,
   home: Home,
   'shopping-cart': ShoppingCart,
@@ -105,34 +105,91 @@ export default function AddExpenseModal({
     const catObj = categories.find((c) => c.key === usedCategory)
     const label = catObj?.label || customCategory || usedCategory
     notification.success({
-      message: `Đã ghi: ${person} – ${amount.toLocaleString('vi-VN')}đ – ${label}`,
+      message: 'Đã ghi chi tiêu',
+      description: `Cảm ơn vì sự chia sẻ 💛`,
       placement: 'bottomRight',
+      duration: 2.5,
+      style: {
+        backgroundColor: '#FAF8F4',
+        borderRadius: '12px',
+      },
     })
   }
 
   return (
     <AnimatePresence>
       {open && (
-        <Modal
-          open
-          onCancel={onClose}
-          footer={null}
-          centered
-          width={520}
-          className="[&_.ant-modal-content]:rounded-2xl [&_.ant-modal-content]:border [&_.ant-modal-content]:border-slate-100 [&_.ant-modal-content]:shadow-[0_16px_60px_rgba(15,23,42,0.12)]"
-          destroyOnClose
-        >
+        <>
+          {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 160, damping: 18 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              zIndex: 1000,
+            }}
+          />
+          {/* Bottom Sheet */}
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: '#FAF8F4', // cream
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              boxShadow: '0 -4px 24px rgba(111, 143, 95, 0.12)',
+              zIndex: 1001,
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '24px',
+              paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+            }}
           >
-            <div className="text-lg font-extrabold text-slate-900 mb-3">
+            {/* Handle bar */}
+            <div
+              style={{
+                width: '40px',
+                height: '4px',
+                backgroundColor: '#8B8F7A',
+                borderRadius: '2px',
+                margin: '0 auto 20px',
+                opacity: 0.4,
+              }}
+            />
+            <div
+              style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: '#4A4F3B', // dark olive
+                marginBottom: '24px',
+                textAlign: 'center',
+              }}
+            >
               Thêm chi tiêu
             </div>
-            <div className="mb-3">
-              <Text type="secondary" className="block mb-0">
+            <div style={{ marginBottom: '20px' }}>
+              <Text
+                style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  color: '#8B8F7A', // olive grey
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
                 Số tiền
               </Text>
               <Input
@@ -141,18 +198,39 @@ export default function AddExpenseModal({
                 onChange={(e) => setAmountInput(e.target.value)}
                 placeholder="Nhập số (tự + .000đ)"
                 suffix={
-                  <span className="text-slate-400">{prettyInput}</span>
+                  <span style={{ color: '#8B8F7A', fontSize: '13px' }}>
+                    {prettyInput}
+                  </span>
                 }
-                className="[&_.ant-input]:rounded-[10px]"
+                style={{
+                  borderRadius: '12px',
+                  backgroundColor: '#EFECE6', // warm linen
+                  border: '1px solid rgba(163, 198, 140, 0.25)',
+                }}
                 inputMode="numeric"
               />
             </div>
 
-            <div className="mt-3">
-              <Text type="secondary" className="block mb-0">
+            <div style={{ marginTop: '20px' }}>
+              <Text
+                style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  color: '#8B8F7A', // olive grey
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
                 Danh mục
               </Text>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 mt-1.5">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                  gap: '8px',
+                  marginTop: '8px',
+                }}
+              >
                 {categories.map((c) => {
                   const Icon = iconMap[c.icon]
                   const active = category === c.key
@@ -160,43 +238,61 @@ export default function AddExpenseModal({
                     <motion.button
                       key={c.key}
                       type="button"
-                      className={`inline-flex items-center gap-1.5 py-2 px-2.5 border rounded-full flex-none transition-colors ${
-                        active ? 'font-bold' : ''
-                      }`}
                       onClick={() => setCategory(c.key)}
-                      whileHover={{ scale: 1.04 }}
+                      whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       style={{
-                        borderColor: active ? c.color : '#e5e7eb',
-                        backgroundColor: active ? `${c.color}22` : '#fff',
-                        color: active ? c.color : '#64748b',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '10px 12px',
+                        border: `1.5px solid ${active ? c.color : '#D8E2D0'}`,
+                        borderRadius: '12px',
+                        backgroundColor: active
+                          ? `${c.color}25`
+                          : '#EFECE6',
+                        color: active ? c.color : '#8B8F7A',
+                        fontWeight: active ? 600 : 500,
+                        fontSize: '13px',
+                        transition: 'all 0.2s ease',
                       }}
                     >
-                      <Icon size={16} /> {c.label}
+                      <Icon size={16} strokeWidth={1.5} /> {c.label}
                     </motion.button>
                   )
                 })}
                 <motion.button
                   type="button"
-                  className={`inline-flex items-center gap-1.5 py-2 px-2.5 border rounded-full flex-none transition-colors ${
-                    category === 'custom' ? 'font-bold' : ''
-                  }`}
                   onClick={() => setCategory('custom')}
-                  whileHover={{ scale: 1.04 }}
+                  whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   style={{
-                    borderColor: category === 'custom' ? '#94A3B8' : '#e5e7eb',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 12px',
+                    border: `1.5px solid ${
+                      category === 'custom' ? '#A3C68C' : '#D8E2D0'
+                    }`,
+                    borderRadius: '12px',
                     backgroundColor:
-                      category === 'custom' ? '#94A3B822' : '#fff',
-                    color: '#64748b',
+                      category === 'custom' ? '#A3C68C25' : '#EFECE6',
+                    color: category === 'custom' ? '#A3C68C' : '#8B8F7A',
+                    fontWeight: category === 'custom' ? 600 : 500,
+                    fontSize: '13px',
                   }}
                 >
-                  <Plus size={16} /> Thêm
+                  <Plus size={16} strokeWidth={1.5} /> Thêm
                 </motion.button>
               </div>
               {category === 'custom' && (
                 <Input
-                  className="mt-2! py-2!"
+                  style={{
+                    marginTop: '12px',
+                    borderRadius: '12px',
+                    backgroundColor: '#EFECE6',
+                    border: '1px solid rgba(163, 198, 140, 0.25)',
+                  }}
                   placeholder="Tên danh mục mới"
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
@@ -204,54 +300,168 @@ export default function AddExpenseModal({
               )}
             </div>
 
-            <div className="mt-3">
-              <Space className="mb-0">
-                <Text type="secondary" className="mr-2">
-                  Người chi
-                </Text>
-              </Space>
+            <div style={{ marginTop: '20px' }}>
+              <Text
+                style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  color: '#8B8F7A', // olive grey
+                  fontSize: '13px',
+                  fontWeight: 500,
+                }}
+              >
+                Ai chi trả?
+              </Text>
               <Radio.Group
                 value={person}
                 onChange={(e) => setPerson(e.target.value)}
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                }}
               >
-                <Radio.Button value="GH">GH</Radio.Button>
-                <Radio.Button value="Both">Cả 2</Radio.Button>
-                <Radio.Button value="TM">TM</Radio.Button>
+                <Radio.Button
+                  value="GH"
+                  style={{
+                    borderRadius: '10px',
+                    borderColor: '#D8E2D0',
+                    backgroundColor:
+                      person === 'GH' ? '#A3C68C' : '#EFECE6',
+                    color: person === 'GH' ? 'white' : '#8B8F7A',
+                    fontWeight: person === 'GH' ? 600 : 500,
+                  }}
+                >
+                  GH
+                </Radio.Button>
+                <Radio.Button
+                  value="Both"
+                  style={{
+                    borderRadius: '10px',
+                    borderColor: '#D8E2D0',
+                    backgroundColor:
+                      person === 'Both' ? '#A3C68C' : '#EFECE6',
+                    color: person === 'Both' ? 'white' : '#8B8F7A',
+                    fontWeight: person === 'Both' ? 600 : 500,
+                  }}
+                >
+                  Cả hai
+                </Radio.Button>
+                <Radio.Button
+                  value="TM"
+                  style={{
+                    borderRadius: '10px',
+                    borderColor: '#D8E2D0',
+                    backgroundColor:
+                      person === 'TM' ? '#A3C68C' : '#EFECE6',
+                    color: person === 'TM' ? 'white' : '#8B8F7A',
+                    fontWeight: person === 'TM' ? 600 : 500,
+                  }}
+                >
+                  TM
+                </Radio.Button>
               </Radio.Group>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
+            <div
+              style={{
+                marginTop: '20px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '12px',
+              }}
+            >
               <div>
-                <Text type="secondary" className="block mb-0">
+                <Text
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: '#8B8F7A', // olive grey
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}
+                >
                   Ngày
                 </Text>
                 <DatePicker
                   value={date}
                   onChange={(v) => setDate(v || dayjs())}
                   format="DD/MM/YYYY"
-                  className="w-full"
+                  style={{
+                    width: '100%',
+                    borderRadius: '12px',
+                    backgroundColor: '#EFECE6',
+                    border: '1px solid rgba(163, 198, 140, 0.25)',
+                  }}
                 />
               </div>
               <div>
-                <Text type="secondary" className="block mb-0">
+                <Text
+                  style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    color: '#8B8F7A', // olive grey
+                    fontSize: '13px',
+                    fontWeight: 500,
+                  }}
+                >
                   Ghi chú
                 </Text>
                 <Input
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Tuỳ chọn"
+                  style={{
+                    borderRadius: '12px',
+                    backgroundColor: '#EFECE6',
+                    border: '1px solid rgba(163, 198, 140, 0.25)',
+                  }}
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <Button onClick={onClose}>Huỷ</Button>
-              <Button type="primary" onClick={handleAdd}>
-                Ghi lại
+            <div
+              style={{
+                marginTop: '28px',
+                display: 'flex',
+                gap: '12px',
+                paddingBottom: '8px',
+              }}
+            >
+              <Button
+                onClick={onClose}
+                style={{
+                  flex: 1,
+                  height: '48px',
+                  borderRadius: '12px',
+                  borderColor: '#D8E2D0',
+                  color: '#8B8F7A',
+                  fontWeight: 500,
+                }}
+              >
+                Huỷ
               </Button>
+              <motion.button
+                onClick={handleAdd}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                style={{
+                  flex: 1,
+                  height: '48px',
+                  borderRadius: '12px',
+                  backgroundColor: '#A3C68C', // avocado green
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '15px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(163, 198, 140, 0.25)',
+                }}
+              >
+                Thêm
+              </motion.button>
             </div>
           </motion.div>
-        </Modal>
+        </>
       )}
     </AnimatePresence>
   )

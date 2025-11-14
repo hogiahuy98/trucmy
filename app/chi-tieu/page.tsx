@@ -1,27 +1,28 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
-import { ConfigProvider, Row, Col, notification, Button } from 'antd'
-import { Typography } from 'antd'
+import { ConfigProvider, notification, Button } from 'antd'
 import { useRouter } from 'next/navigation'
 import { BarChart3 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useFinanceStore } from './store'
 import TotalSummaryCard from './components/TotalSummaryCard'
-import PersonSplitCard from './components/PersonSplitCard'
-import CategoryChartCard from './components/CategoryChartCard'
 import RecentTransactionsCard from './components/RecentTransactionsCard'
 import DailySpendingCard from './components/DailySpendingCard'
+import InsightsCard from './components/InsightsCard'
+import CategoryChips from './components/CategoryChips'
 import AddExpenseModal from './components/AddExpenseModal'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
 
-const { Title } = Typography
 
 const theme = {
   token: {
-    colorPrimary: '#ff4b6e',
-    borderRadius: 16,
-    colorBgContainer: '#ffffff',
+    colorPrimary: '#A3C68C', // avocado green
+    borderRadius: 18,
+    colorBgContainer: '#FAF8F4', // cream
+    colorText: '#4A4F3B', // dark olive
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", Roboto, sans-serif',
   },
 }
 
@@ -120,60 +121,84 @@ export default function FinancePage() {
     <ConfigProvider theme={theme}>
       <div className={styles.financeApp}>
         <div className={styles.financeContainer}>
-          <div className={styles.financeHeader}>
-            <div className="flex items-center justify-between w-full">
-              <Title level={2} className={styles.titleGradient}>
-                Quản lý chi tiêu
-              </Title>
-              <Button
-                type="primary"
-                icon={<BarChart3 size={16} />}
-                onClick={() => router.push('/chi-tieu/thong-ke')}
-                className="flex items-center gap-2"
-                style={{
-                  background: 'linear-gradient(135deg, #ff4b6e, #ff93a9)',
-                  border: 'none',
-                  borderRadius: '12px',
-                  height: '40px',
-                  fontWeight: 600,
-                }}
-              >
-                Thống kê
-              </Button>
-            </div>
-          </div>
+          {/* iOS Large Title */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+            className={styles.iosHeader}
+          >
+            <h1 className={styles.iosLargeTitle}>Chi tiêu của tụi mình 🥑</h1>
+            <Button
+              type="text"
+              icon={<BarChart3 size={18} />}
+              onClick={() => router.push('/chi-tieu/thong-ke')}
+              className={styles.iosHeaderButton}
+            >
+              Thống kê
+            </Button>
+          </motion.div>
 
-          <Row gutter={[16, 16]}>
-            <Col xs={24}>
-              <DailySpendingCard expenses={expenses} />
-            </Col>
-            <Col xs={24} md={12}>
-              <TotalSummaryCard total={total} />
-            </Col>
-            <Col xs={24} md={12}>
-              <PersonSplitCard ghPct={ghPct} tmPct={tmPct} />
-            </Col>
+          {/* Hero Card - Total Summary */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.05 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <TotalSummaryCard total={total} />
+          </motion.div>
 
-            <Col xs={24} md={12}>
-              <CategoryChartCard
-                chartData={chartData}
-                categories={categories}
-                colorPalette={colorPalette}
-                total={total}
-              />
-            </Col>
+          {/* Daily Snapshot */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.1 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <DailySpendingCard expenses={expenses} />
+          </motion.div>
 
-            <Col xs={24} md={12}>
-              <RecentTransactionsCard
-                expenses={expenses}
-                categories={categories}
-                onDelete={deleteExpense}
-              />
-            </Col>
-          </Row>
+          {/* Category Chips - Horizontal Scroll */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.15 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <CategoryChips
+              chartData={chartData}
+              categories={categories}
+              total={total}
+            />
+          </motion.div>
+
+          {/* Gentle Insights */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.2 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <InsightsCard expenses={expenses} />
+          </motion.div>
+
+          {/* Recent Transactions - iOS Table Style */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.25 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <RecentTransactionsCard
+              expenses={expenses}
+              categories={categories}
+              onDelete={deleteExpense}
+            />
+          </motion.div>
 
           <button className={styles.fab} onClick={() => setOpen(true)}>
-            <span className={styles.fabInner}>Tốn tiền 💸</span>
+            <span className={styles.fabInner}>Thêm chi tiêu</span>
           </button>
 
           <AddExpenseModal
@@ -184,7 +209,7 @@ export default function FinancePage() {
             onAddCategory={addCategory}
           />
 
-          <div className={styles.footer}>H&M — build, measure, save 💰</div>
+          <div className={styles.footer}>GH × TM — cùng nhau quản lý chi tiêu</div>
         </div>
       </div>
     </ConfigProvider>
