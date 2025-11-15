@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
@@ -13,6 +13,7 @@ import DailySpendingCard from './components/DailySpendingCard'
 import InsightsCard from './components/InsightsCard'
 import CategoryChips from './components/CategoryChips'
 import AddExpenseModal from './components/AddExpenseModal'
+import QuickAddExpense from './components/QuickAddExpense'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
 
@@ -33,8 +34,11 @@ export default function FinancePage() {
   const cleanup = useFinanceStore((s) => s.cleanup)
 
   const [open, setOpen] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggeredRef = useRef(false)
 
   // Initialize store on mount
   useEffect(() => {
@@ -84,6 +88,66 @@ export default function FinancePage() {
       })
     }
   }, [isOnline, pendingMutations.length])
+
+  // Long press handler for FAB
+  const handleFabMouseDown = () => {
+    longPressTriggeredRef.current = false
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true
+      setQuickAddOpen(true)
+      // Haptic feedback if supported
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(30)
+      }
+    }, 500) // 500ms for long press
+  }
+
+  const handleFabMouseUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  const handleFabClick = (e: React.MouseEvent) => {
+    // Prevent click if long press was just triggered
+    if (longPressTriggeredRef.current) {
+      e.preventDefault()
+      longPressTriggeredRef.current = false
+      return
+    }
+    
+    // Only open full modal if it wasn't a long press
+    if (longPressTimerRef.current === null) {
+      setOpen(true)
+    }
+    
+    // Clear timer if it exists
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  // Reset long press flag when quickAdd closes
+  useEffect(() => {
+    if (!quickAddOpen) {
+      // Small delay to prevent immediate click after closing
+      const timer = setTimeout(() => {
+        longPressTriggeredRef.current = false
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [quickAddOpen])
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current)
+      }
+    }
+  }, [])
 
   const { total, byPerson, categoryMap } = useMemo(
     () => useFinanceStore.getState().getMonthlySummary(),
@@ -183,7 +247,15 @@ export default function FinancePage() {
               />
           </motion.div>
 
-          <button className={styles.fab} onClick={() => setOpen(true)}>
+          <button
+            className={styles.fab}
+            onClick={handleFabClick}
+            onMouseDown={handleFabMouseDown}
+            onMouseUp={handleFabMouseUp}
+            onMouseLeave={handleFabMouseUp}
+            onTouchStart={handleFabMouseDown}
+            onTouchEnd={handleFabMouseUp}
+          >
             <span className={styles.fabInner}>Thêm chi tiêu</span>
           </button>
 
@@ -193,6 +265,15 @@ export default function FinancePage() {
             categories={categories}
             onAdd={addExpense}
             onAddCategory={addCategory}
+          />
+
+          <QuickAddExpense
+            open={quickAddOpen}
+            onClose={() => setQuickAddOpen(false)}
+            onOpenFullModal={() => {
+              setQuickAddOpen(false)
+              setOpen(true)
+            }}
           />
 
           <div className={styles.footer}>GH × TM — cùng nhau quản lý chi tiêu</div>
