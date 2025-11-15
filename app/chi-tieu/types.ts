@@ -3,6 +3,7 @@ export interface Category {
   label: string
   icon: string
   color: string
+  disabled: boolean;
 }
 
 export interface Expense {

@@ -14,10 +14,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Search, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Search, RotateCcw, Trash2, Edit2 } from 'lucide-react'
 import dayjs, { Dayjs } from 'dayjs'
+import { toast } from 'sonner'
 import { useFinanceStore } from '../store'
 import LoadingIndicator from '../components/LoadingIndicator'
+import ConfirmModal from '../components/ConfirmModal'
+import AddExpenseModal from '../components/AddExpenseModal'
 import type { Expense, Category } from '../types'
 import { formatVND } from '../utils'
 import styles from '../styles/finance.module.scss'
@@ -47,6 +50,9 @@ export default function ThongKePage() {
   const expenses = useFinanceStore((s) => s.expenses)
   const categories = useFinanceStore((s) => s.categories)
   const deleteExpense = useFinanceStore((s) => s.deleteExpense)
+  const updateExpense = useFinanceStore((s) => s.updateExpense)
+  const addExpense = useFinanceStore((s) => s.addExpense)
+  const addCategory = useFinanceStore((s) => s.addCategory)
   const initialize = useFinanceStore((s) => s.initialize)
   const isLoading = useFinanceStore((s) => s.isLoading)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
@@ -62,6 +68,14 @@ export default function ThongKePage() {
   const [pageSize] = useState(20)
   const [sortField, setSortField] = useState<string>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Confirm modal states
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null)
+
+  // Edit modal states
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null)
 
   // Initialize store on mount
   useEffect(() => {
@@ -150,6 +164,40 @@ export default function ThongKePage() {
     setSelectedCategory('all')
     setSearchText('')
     setCurrentPage(1)
+  }
+
+  const handleDeleteExpense = (expense: Expense) => {
+    setExpenseToDelete(expense)
+    setConfirmModalOpen(true)
+  }
+
+  const confirmDeleteExpense = async () => {
+    if (!expenseToDelete) return
+
+    try {
+      await deleteExpense(expenseToDelete.id)
+      toast.success('Đã xóa chi tiêu', {
+        description: 'Chi tiêu đã được xóa thành công',
+        duration: 2500,
+      })
+    } catch (error) {
+      toast.error('Lỗi', {
+        description: 'Không thể xóa chi tiêu',
+        duration: 2500,
+      })
+    } finally {
+      setExpenseToDelete(null)
+    }
+  }
+
+  const handleEditExpense = (expense: Expense) => {
+    setExpenseToEdit(expense)
+    setEditModalOpen(true)
+  }
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false)
+    setExpenseToEdit(null)
   }
 
   // Paginated data
@@ -528,6 +576,7 @@ export default function ThongKePage() {
                     <TableHead>Người chi</TableHead>
                     <TableHead>Danh mục</TableHead>
                     <TableHead>Ghi chú</TableHead>
+                    <TableHead className="w-32"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -575,6 +624,26 @@ export default function ThongKePage() {
                         <TableCell className="text-olive-grey">
                           {expense.note || '-'}
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditExpense(expense)}
+                              className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                              <Edit2 size={16} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteExpense(expense)}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     )
                   })}
@@ -612,6 +681,39 @@ export default function ThongKePage() {
 
           <div className={styles.footer}>GH × TM — cùng nhau quản lý chi tiêu</div>
         </div>
+
+        {/* Confirm Delete Modal */}
+        <ConfirmModal
+          open={confirmModalOpen}
+          onClose={() => {
+            setConfirmModalOpen(false)
+            setExpenseToDelete(null)
+          }}
+          onConfirm={confirmDeleteExpense}
+          title="Xác nhận xóa chi tiêu"
+          description={
+            expenseToDelete
+              ? `Bạn có chắc muốn xóa chi tiêu ${formatVND(expenseToDelete.amount)} (${
+                  categories.find((c) => c.key === expenseToDelete.category)?.label ||
+                  expenseToDelete.category
+                }) không? Hành động này không thể hoàn tác.`
+              : ''
+          }
+          confirmText="Xóa"
+          cancelText="Huỷ"
+          variant="danger"
+        />
+
+        {/* Edit Expense Modal */}
+        <AddExpenseModal
+          open={editModalOpen}
+          onClose={handleCloseEditModal}
+          categories={categories}
+          onAdd={addExpense}
+          onUpdate={updateExpense}
+          onAddCategory={addCategory}
+          editExpense={expenseToEdit}
+        />
       </div>
   )
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -14,9 +14,10 @@ import {
   Utensils,
   Tag as TagIcon,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { Category } from "../types";
+import type { Category, Expense } from "../types";
 
 const iconMap: Record<
   string,
@@ -43,7 +44,15 @@ interface AddExpenseModalProps {
     note: string;
     date: Date;
   }) => Promise<void>;
+  onUpdate?: (expenseId: number, expense: {
+    amount: number;
+    person: "GH" | "TM" | "Both";
+    category: string;
+    note: string;
+    date: Date;
+  }) => Promise<void>;
   onAddCategory: (label: string) => Promise<void>;
+  editExpense?: Expense | null;
 }
 
 // Tách FormContent ra ngoài để tránh re-create và lost focus
@@ -64,6 +73,8 @@ interface FormContentProps {
   setNote: (value: string) => void;
   onClose: () => void;
   handleAdd: () => void;
+  isEditMode: boolean;
+  isLoading: boolean;
 }
 
 function FormContent({
@@ -83,11 +94,13 @@ function FormContent({
   setNote,
   onClose,
   handleAdd,
+  isEditMode,
+  isLoading,
 }: FormContentProps) {
   return (
     <>
       <h3 className="text-xl font-semibold text-dark-olive mb-6 text-center md:text-left">
-        Thêm chi tiêu
+        {isEditMode ? "Chỉnh sửa chi tiêu" : "Thêm chi tiêu"}
       </h3>
       <div className="mb-5">
         <label className="block mb-2 text-olive-grey text-[13px] font-medium">
@@ -113,7 +126,7 @@ function FormContent({
           Danh mục
         </label>
         <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 mt-2">
-          {categories.map((c) => {
+          {categories.filter(c => !c.disabled).map((c) => {
             const Icon = iconMap[c.icon];
             const active = category === c.key;
             return (
@@ -219,6 +232,7 @@ function FormContent({
           variant="outline"
           onClick={onClose}
           className="flex-1 h-12"
+          disabled={isLoading}
         >
           Huỷ
         </Button>
@@ -226,8 +240,16 @@ function FormContent({
           variant="default"
           onClick={handleAdd}
           className="flex-1 h-12"
+          disabled={isLoading}
         >
-          Thêm
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isEditMode ? "Đang cập nhật..." : "Đang thêm..."}
+            </>
+          ) : (
+            isEditMode ? "Cập nhật" : "Thêm"
+          )}
         </Button>
       </div>
     </>
@@ -239,14 +261,44 @@ export default function AddExpenseModal({
   onClose,
   categories,
   onAdd,
+  onUpdate,
   onAddCategory,
+  editExpense,
 }: AddExpenseModalProps) {
+  const isEditMode = !!editExpense;
+  
   const [amountInput, setAmountInput] = useState("");
   const [category, setCategory] = useState(categories[0]?.key || "cafe");
   const [person, setPerson] = useState<"GH" | "TM" | "Both">("TM");
   const [date, setDate] = useState<Date>(new Date());
   const [note, setNote] = useState("");
   const [customCategory, setCustomCategory] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editExpense && open) {
+      const amount = editExpense.amount / 1000;
+      setAmountInput(amount.toString());
+      setCategory(editExpense.category);
+      setPerson(editExpense.person);
+      setDate(editExpense.date instanceof Date ? editExpense.date : new Date(editExpense.date));
+      setNote(editExpense.note || "");
+      setCustomCategory("");
+    } else if (!editExpense && open) {
+      // Reset form when adding new
+      setAmountInput("");
+      setCategory(categories[0]?.key || "cafe");
+      setPerson("TM");
+      setDate(new Date());
+      setNote("");
+      setCustomCategory("");
+    }
+    // Reset loading when modal closes
+    if (!open) {
+      setIsLoading(false);
+    }
+  }, [editExpense, open, categories]);
 
   const prettyInput = amountInput
     ? `${parseInt(amountInput.replace(/\D/g, ""), 10).toLocaleString(
@@ -261,37 +313,59 @@ export default function AddExpenseModal({
       return;
     }
 
-    let usedCategory = category;
-    if (category === "custom") {
-      const label = customCategory.trim();
-      if (!label) {
-        toast.warning("Nhập tên danh mục");
-        return;
+    setIsLoading(true);
+
+    try {
+      let usedCategory = category;
+      if (category === "custom") {
+        const label = customCategory.trim();
+        if (!label) {
+          toast.warning("Nhập tên danh mục");
+          setIsLoading(false);
+          return;
+        }
+        await onAddCategory(label);
+        usedCategory = label.trim().toLowerCase().replace(/\s+/g, "-");
       }
-      await onAddCategory(label);
-      usedCategory = label.trim().toLowerCase().replace(/\s+/g, "-");
+
+      const amount = num * 1000;
+      const payload = {
+        amount,
+        person,
+        category: usedCategory,
+        note: note.trim(),
+        date,
+      };
+
+      if (isEditMode && editExpense && onUpdate) {
+        await onUpdate(editExpense.id, payload);
+        toast.success("Đã cập nhật chi tiêu", {
+          description: "Chi tiêu đã được cập nhật thành công",
+          duration: 2500,
+        });
+      } else {
+        await onAdd({
+          ...payload,
+          id: Date.now(),
+        });
+        toast.success("Đã ghi chi tiêu", {
+          description: "Cảm ơn vì sự chia sẻ 💛",
+          duration: 2500,
+        });
+      }
+
+      onClose();
+      setAmountInput("");
+      setNote("");
+      setCustomCategory("");
+    } catch (error) {
+      toast.error("Lỗi", {
+        description: "Có lỗi xảy ra, vui lòng thử lại",
+        duration: 2500,
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    const amount = num * 1000;
-    const payload = {
-      id: Date.now(),
-      amount,
-      person,
-      category: usedCategory,
-      note: note.trim(),
-      date,
-    };
-
-    await onAdd(payload);
-    onClose();
-    setAmountInput("");
-    setNote("");
-    setCustomCategory("");
-
-    toast.success("Đã ghi chi tiêu", {
-      description: "Cảm ơn vì sự chia sẻ 💛",
-      duration: 2500,
-    });
   };
 
   return (
@@ -332,6 +406,8 @@ export default function AddExpenseModal({
               setNote={setNote}
               onClose={onClose}
               handleAdd={handleAdd}
+              isEditMode={isEditMode}
+              isLoading={isLoading}
             />
           </motion.div>
 
@@ -365,6 +441,8 @@ export default function AddExpenseModal({
               setNote={setNote}
               onClose={onClose}
               handleAdd={handleAdd}
+              isEditMode={isEditMode}
+              isLoading={isLoading}
             />
           </motion.div>
         </>

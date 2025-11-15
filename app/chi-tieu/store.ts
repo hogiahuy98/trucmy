@@ -5,16 +5,34 @@ import { supabase } from '../../lib/supabase'
 import type { Category, Expense, MonthlySummary } from './types'
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { key: 'cafe', label: 'Cafe', icon: 'coffee', color: '#A78BFA' },
-  { key: 'food', label: 'Ăn uống', icon: 'utensils', color: '#60A5FA' },
-  { key: 'market', label: 'Đi chợ', icon: 'shopping-cart', color: '#34D399' },
-  { key: 'fun', label: 'Giải trí', icon: 'clapperboard', color: '#F59E0B' },
-  { key: 'home', label: 'Tiền nhà', icon: 'home', color: '#F472B6' },
-  { key: 'internet', label: 'Tiền mạng', icon: 'wifi', color: '#22D3EE' },
+  {
+    key: 'cafe', label: 'Cafe', icon: 'coffee', color: '#A78BFA',
+    disabled: false
+  },
+  {
+    key: 'food', label: 'Ăn uống', icon: 'utensils', color: '#60A5FA',
+    disabled: false
+  },
+  {
+    key: 'market', label: 'Đi chợ', icon: 'shopping-cart', color: '#34D399',
+    disabled: false
+  },
+  {
+    key: 'fun', label: 'Giải trí', icon: 'clapperboard', color: '#F59E0B',
+    disabled: false
+  },
+  {
+    key: 'home', label: 'Tiền nhà', icon: 'home', color: '#F472B6',
+    disabled: false
+  },
+  {
+    key: 'internet', label: 'Tiền mạng', icon: 'wifi', color: '#22D3EE',
+    disabled: false
+  },
 ]
 
 interface PendingMutation {
-  type: 'addExpense' | 'addCategory' | 'deleteExpense'
+  type: 'addExpense' | 'addCategory' | 'deleteExpense' | 'updateExpense'
   data: any
 }
 
@@ -32,6 +50,13 @@ interface FinanceState {
   cleanup: () => void
   addExpense: (expense: {
     id: number
+    amount: number
+    person: 'GH' | 'TM' | 'Both'
+    category: string
+    note?: string | null
+    date: Date | string
+  }) => Promise<void>
+  updateExpense: (expenseId: number, expense: {
     amount: number
     person: 'GH' | 'TM' | 'Both'
     category: string
@@ -248,6 +273,61 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
+  // Update expense with Supabase sync
+  updateExpense: async (expenseId: number, expense) => {
+    const expenseData: Partial<Expense> = {
+      amount: expense.amount,
+      person: expense.person,
+      category: expense.category,
+      note: expense.note || null,
+      date: expense.date instanceof Date ? expense.date.toISOString() : expense.date,
+    }
+
+    // Optimistically update UI
+    set((state) => ({
+      expenses: state.expenses.map((e) =>
+        e.id === expenseId ? { ...e, ...expenseData } : e
+      ),
+    }))
+
+    if (!supabase) {
+      return
+    }
+
+    // Try to save to Supabase
+    if (!get().isOnline) {
+      // Queue for later sync
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateExpense', data: { id: expenseId, ...expenseData } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update(expenseData)
+        .eq('id', expenseId)
+
+      if (error) throw error
+    } catch (error: any) {
+      console.error('Failed to update expense:', error)
+      // Reload expenses to restore state
+      get().initialize()
+      // Queue for retry
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateExpense', data: { id: expenseId, ...expenseData } },
+        ],
+        syncError: error.message || 'Failed to update expense',
+      }))
+    }
+  },
+
   // Add category with Supabase sync
   addCategory: async (label: string) => {
     const key = label.trim().toLowerCase().replace(/\s+/g, '-')
@@ -259,6 +339,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       label,
       icon: 'tag',
       color: '#94A3B8',
+      disabled: false,
     }
 
     // Optimistically update UI
@@ -363,6 +444,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           const { error } = await supabase.from('categories').upsert(mutation.data, {
             onConflict: 'key',
           })
+          if (error) throw error
+          successful.push(mutation)
+        } else if (mutation.type === 'updateExpense') {
+          const { id, ...updateData } = mutation.data
+          const { error } = await supabase
+            .from('expenses')
+            .update(updateData)
+            .eq('id', id)
           if (error) throw error
           successful.push(mutation)
         } else if (mutation.type === 'deleteExpense') {
