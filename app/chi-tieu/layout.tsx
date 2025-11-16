@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/icons/finance-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/finance-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icons/rabbit-svgrepo-com.svg', sizes: '192x192', type: 'image/svg+xml' },
+      { url: '/icons/rabbit-svgrepo-com.svg', sizes: '512x512', type: 'image/svg+xml' },
     ],
     apple: [
-      { url: '/icons/finance-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/rabbit-svgrepo-com.svg', sizes: '192x192', type: 'image/svg+xml' },
     ],
   },
   viewport: {

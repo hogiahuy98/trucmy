@@ -41,6 +41,14 @@ export async function GET() {
             purpose: 'any'
           },
         ],
+        apple: [
+          {
+            src: '/icons/rabbit-svgrepo-com.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+        ],
       },
       {
         headers: {

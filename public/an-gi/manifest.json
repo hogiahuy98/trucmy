@@ -9,6 +9,17 @@
   "description": "Ứng dụng chọn món, vote món và gợi ý món hằng ngày cho các cặp đôi.",
   "orientation": "portrait",
   "icons": [
+    {
+      "src": "/icons/trai-bo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/trai-bo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
-
