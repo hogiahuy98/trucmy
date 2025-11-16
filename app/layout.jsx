@@ -2,7 +2,7 @@ import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
 
 export const metadata = {
-  title: 'Score H&M',
+  title: 'HuyMy',
   description: 'Theo dõi điểm yêu thương giữa H&M với Next.js',
   manifest: '/manifest.json',
   themeColor: '#FAF8F4',

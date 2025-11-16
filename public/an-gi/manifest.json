@@ -1,0 +1,14 @@
+{
+  "name": "Ăn gì hôm nay",
+  "short_name": "Ăn gì",
+  "start_url": "/an-gi",
+  "scope": "/an-gi",
+  "display": "standalone",
+  "background_color": "#FAF8F4",
+  "theme_color": "#A3C68C",
+  "description": "Ứng dụng chọn món, vote món và gợi ý món hằng ngày cho các cặp đôi.",
+  "orientation": "portrait",
+  "icons": [
+  ]
+}
+
