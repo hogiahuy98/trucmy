@@ -26,3 +26,24 @@ export interface MonthlySummary {
   monthly: Expense[]
 }
 
+export interface Income {
+  id: number
+  month: number  // 0-11
+  year: number
+  value: number  // Income amount
+  by_person: 'GH' | 'TM'  // Who received this income
+  note?: string | null  // Optional note to distinguish multiple incomes
+  created_at: string
+  updated_at: string
+}
+
+export interface BalanceSummary {
+  totalIncome: number
+  totalExpenses: number
+  remaining: number
+  byPerson: {
+    GH: { income: number, expenses: number, remaining: number }
+    TM: { income: number, expenses: number, remaining: number }
+  }
+}
+

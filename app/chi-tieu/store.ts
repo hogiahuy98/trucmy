@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { supabase } from '../../lib/supabase'
-import type { Category, Expense, MonthlySummary } from './types'
+import type { Category, Expense, MonthlySummary, Income, BalanceSummary } from './types'
 
 const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -32,19 +32,21 @@ const DEFAULT_CATEGORIES: Category[] = [
 ]
 
 interface PendingMutation {
-  type: 'addExpense' | 'addCategory' | 'deleteExpense' | 'updateExpense'
+  type: 'addExpense' | 'addCategory' | 'deleteExpense' | 'updateExpense' | 'addIncome' | 'updateIncome' | 'deleteIncome'
   data: any
 }
 
 interface FinanceState {
   categories: Category[]
   expenses: Expense[]
+  incomes: Income[]
   isLoading: boolean
   isOnline: boolean
   syncError: string | null
   pendingMutations: PendingMutation[]
   _expensesChannel?: any
   _categoriesChannel?: any
+  _incomesChannel?: any
   initialize: () => Promise<void>
   setupRealtimeSubscriptions: () => void
   cleanup: () => void
@@ -65,6 +67,11 @@ interface FinanceState {
   }) => Promise<void>
   addCategory: (label: string) => Promise<void>
   deleteExpense: (expenseId: number) => Promise<void>
+  addIncome: (month: number, year: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
+  updateIncome: (incomeId: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
+  deleteIncome: (incomeId: number) => Promise<void>
+  getCurrentMonthIncomes: () => Income[]
+  getBalanceSummary: () => BalanceSummary
   syncPendingMutations: () => Promise<void>
   setOnlineStatus: (isOnline: boolean) => void
   getMonthlySummary: () => MonthlySummary
@@ -73,6 +80,7 @@ interface FinanceState {
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: DEFAULT_CATEGORIES,
   expenses: [],
+  incomes: [],
   isLoading: false,
   isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   syncError: null,
@@ -111,9 +119,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
       if (expensesError) throw expensesError
 
+      // Load incomes
+      const { data: incomesData, error: incomesError } = await supabase
+        .from('incomes')
+        .select('*')
+        .order('year', { ascending: false })
+        .order('month', { ascending: false })
+
+      if (incomesError) throw incomesError
+
       set({
         categories: loadedCategories,
         expenses: (expensesData || []) as Expense[],
+        incomes: (incomesData || []) as Income[],
         isLoading: false,
         syncError: null,
       })
@@ -213,15 +231,61 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       )
       .subscribe()
 
+    // Subscribe to incomes changes
+    const incomesChannel = supabase
+      .channel('incomes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'incomes',
+        },
+        async (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            set((state) => {
+              // Check if income already exists (avoid duplicate from optimistic update)
+              const exists = state.incomes.some((i) => i.id === payload.new.id)
+              if (exists) {
+                return {
+                  incomes: state.incomes.map((i) =>
+                    i.id === payload.new.id ? payload.new : i
+                  ),
+                }
+              }
+              return {
+                incomes: [payload.new, ...state.incomes],
+              }
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            set((state) => ({
+              incomes: state.incomes.map((i) =>
+                i.id === payload.new.id ? payload.new : i
+              ),
+            }))
+          } else if (payload.eventType === 'DELETE') {
+            set((state) => ({
+              incomes: state.incomes.filter((i) => i.id !== payload.old.id),
+            }))
+          }
+        }
+      )
+      .subscribe()
+
     // Store channels for cleanup
-    set({ _expensesChannel: expensesChannel, _categoriesChannel: categoriesChannel })
+    set({ 
+      _expensesChannel: expensesChannel, 
+      _categoriesChannel: categoriesChannel,
+      _incomesChannel: incomesChannel
+    })
   },
 
   // Cleanup subscriptions
   cleanup: () => {
-    const { _expensesChannel, _categoriesChannel } = get()
+    const { _expensesChannel, _categoriesChannel, _incomesChannel } = get()
     if (_expensesChannel && supabase) supabase.removeChannel(_expensesChannel)
     if (_categoriesChannel && supabase) supabase.removeChannel(_categoriesChannel)
+    if (_incomesChannel && supabase) supabase.removeChannel(_incomesChannel)
   },
 
   // Add expense with Supabase sync
@@ -461,6 +525,39 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
             .eq('id', mutation.data.id)
           if (error) throw error
           successful.push(mutation)
+        } else if (mutation.type === 'addIncome') {
+          const { month, year, value, by_person, note } = mutation.data
+          const { error } = await supabase
+            .from('incomes')
+            .insert({
+              month,
+              year,
+              value,
+              by_person,
+              note: note || null,
+            })
+          if (error) throw error
+          successful.push(mutation)
+        } else if (mutation.type === 'updateIncome') {
+          const { id, value, by_person, note } = mutation.data
+          const { error } = await supabase
+            .from('incomes')
+            .update({
+              value,
+              by_person,
+              note: note || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+          if (error) throw error
+          successful.push(mutation)
+        } else if (mutation.type === 'deleteIncome') {
+          const { error } = await supabase
+            .from('incomes')
+            .delete()
+            .eq('id', mutation.data.id)
+          if (error) throw error
+          successful.push(mutation)
         }
       } catch (error) {
         console.error('Failed to sync mutation:', error)
@@ -509,6 +606,223 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       categoryMap[e.category] = (categoryMap[e.category] || 0) + e.amount
     }
     return { total, byPerson, categoryMap, monthly }
+  },
+
+  // Get current month incomes (all incomes for current month)
+  getCurrentMonthIncomes: (): Income[] => {
+    const now = new Date()
+    const month = now.getMonth()
+    const year = now.getFullYear()
+    return get().incomes.filter((i) => i.month === month && i.year === year)
+  },
+
+  // Add new income (always creates new record)
+  addIncome: async (month: number, year: number, value: number, byPerson: 'GH' | 'TM', note?: string) => {
+    const incomeData: Omit<Income, 'id' | 'created_at' | 'updated_at'> = {
+      month,
+      year,
+      value,
+      by_person: byPerson,
+      note: note || null,
+    }
+
+    // Optimistically update UI
+    const tempId = Date.now()
+    set((state) => ({
+      incomes: [
+        {
+          id: tempId,
+          ...incomeData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...state.incomes,
+      ],
+    }))
+
+    if (!supabase) {
+      return
+    }
+
+    // Try to save to Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'addIncome', data: { month, year, ...incomeData } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('incomes')
+        .insert({
+          month,
+          year,
+          value,
+          by_person: byPerson,
+          note: note || null,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Replace optimistic update with real data
+      set((state) => ({
+        incomes: state.incomes.map((i) =>
+          i.id === tempId ? data : i
+        ),
+      }))
+    } catch (error: any) {
+      console.error('Failed to save income:', error)
+      // Remove optimistic update
+      set((state) => ({
+        incomes: state.incomes.filter((i) => i.id !== tempId),
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'addIncome', data: { month, year, ...incomeData } },
+        ],
+        syncError: error.message || 'Failed to save income',
+      }))
+    }
+  },
+
+  // Update existing income
+  updateIncome: async (incomeId: number, value: number, byPerson: 'GH' | 'TM', note?: string) => {
+    // Optimistically update UI
+    set((state) => ({
+      incomes: state.incomes.map((i) =>
+        i.id === incomeId
+          ? { ...i, value, by_person: byPerson, note: note || null, updated_at: new Date().toISOString() }
+          : i
+      ),
+    }))
+
+    if (!supabase) {
+      return
+    }
+
+    // Try to save to Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateIncome', data: { id: incomeId, value, by_person: byPerson, note: note || null } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .update({
+          value,
+          by_person: byPerson,
+          note: note || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', incomeId)
+
+      if (error) throw error
+    } catch (error: any) {
+      console.error('Failed to update income:', error)
+      // Reload incomes to restore state
+      get().initialize()
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateIncome', data: { id: incomeId, value, by_person: byPerson, note: note || null } },
+        ],
+        syncError: error.message || 'Failed to update income',
+      }))
+    }
+  },
+
+  // Delete income
+  deleteIncome: async (incomeId: number) => {
+    // Optimistically update UI
+    set((state) => ({
+      incomes: state.incomes.filter((i) => i.id !== incomeId),
+    }))
+
+    if (!supabase) {
+      return
+    }
+
+    // Try to delete from Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'deleteIncome', data: { id: incomeId } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('id', incomeId)
+
+      if (error) throw error
+    } catch (error: any) {
+      console.error('Failed to delete income:', error)
+      // Reload incomes to restore state
+      get().initialize()
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'deleteIncome', data: { id: incomeId } },
+        ],
+        syncError: error.message || 'Failed to delete income',
+      }))
+    }
+  },
+
+  // Get balance summary (sums all incomes for current month)
+  getBalanceSummary: (): BalanceSummary => {
+    const currentMonthIncomes = get().getCurrentMonthIncomes()
+    const monthlySummary = get().getMonthlySummary()
+
+    // Sum all incomes for current month
+    const totalIncome = currentMonthIncomes.reduce((sum, i) => sum + i.value, 0)
+    const totalGhIncome = currentMonthIncomes
+      .filter((i) => i.by_person === 'GH')
+      .reduce((sum, i) => sum + i.value, 0)
+    const totalTmIncome = currentMonthIncomes
+      .filter((i) => i.by_person === 'TM')
+      .reduce((sum, i) => sum + i.value, 0)
+
+    const totalExpenses = monthlySummary.total
+    const remaining = totalIncome - totalExpenses
+
+    // Calculate by person (split "Both" expenses 50/50)
+    const ghExpenses = monthlySummary.byPerson.GH + monthlySummary.byPerson.Both / 2
+    const tmExpenses = monthlySummary.byPerson.TM + monthlySummary.byPerson.Both / 2
+
+    return {
+      totalIncome,
+      totalExpenses,
+      remaining,
+      byPerson: {
+        GH: {
+          income: totalGhIncome,
+          expenses: ghExpenses,
+          remaining: totalGhIncome - ghExpenses,
+        },
+        TM: {
+          income: totalTmIncome,
+          expenses: tmExpenses,
+          remaining: totalTmIncome - tmExpenses,
+        },
+      },
+    }
   },
 }))
 

@@ -8,11 +8,13 @@ import { BarChart3 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useFinanceStore } from './store'
 import TotalSummaryCard from './components/TotalSummaryCard'
+import BalanceCard from './components/BalanceCard'
 import RecentTransactionsCard from './components/RecentTransactionsCard'
 import DailySpendingCard from './components/DailySpendingCard'
 import InsightsCard from './components/InsightsCard'
 import CategoryChips from './components/CategoryChips'
 import AddExpenseModal from './components/AddExpenseModal'
+import IncomeModal from './components/IncomeModal'
 import QuickAddExpense from './components/QuickAddExpense'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
@@ -32,9 +34,15 @@ export default function FinancePage() {
   const pendingMutations = useFinanceStore((s) => s.pendingMutations)
   const setOnlineStatus = useFinanceStore((s) => s.setOnlineStatus)
   const cleanup = useFinanceStore((s) => s.cleanup)
+  const getCurrentMonthIncomes = useFinanceStore((s) => s.getCurrentMonthIncomes)
+  const getBalanceSummary = useFinanceStore((s) => s.getBalanceSummary)
+  const addIncome = useFinanceStore((s) => s.addIncome)
+  const updateIncome = useFinanceStore((s) => s.updateIncome)
+  const deleteIncome = useFinanceStore((s) => s.deleteIncome)
 
   const [open, setOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [incomeModalOpen, setIncomeModalOpen] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -154,6 +162,18 @@ export default function FinancePage() {
     [expenses]
   )
 
+  const incomes = useFinanceStore((s) => s.incomes)
+
+  const balance = useMemo(
+    () => useFinanceStore.getState().getBalanceSummary(),
+    [expenses, incomes]
+  )
+
+  const currentMonthIncomes = useMemo(
+    () => useFinanceStore.getState().getCurrentMonthIncomes(),
+    [incomes]
+  )
+
   const ghAmount = byPerson.GH + byPerson.Both / 2
   const tmAmount = byPerson.TM + byPerson.Both / 2
   const ghPct = total > 0 ? Math.round((ghAmount / total) * 100) : 0
@@ -197,6 +217,20 @@ export default function FinancePage() {
             style={{ marginBottom: '20px' }}
           >
             <TotalSummaryCard total={total} />
+          </motion.div>
+
+          {/* Balance Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, delay: 0.07 }}
+            style={{ marginBottom: '20px' }}
+          >
+            <BalanceCard
+              balance={balance}
+              hasIncome={currentMonthIncomes.length > 0}
+              onEditClick={() => setIncomeModalOpen(true)}
+            />
           </motion.div>
 
           {/* Daily Snapshot */}
@@ -273,6 +307,21 @@ export default function FinancePage() {
             onOpenFullModal={() => {
               setQuickAddOpen(false)
               setOpen(true)
+            }}
+          />
+
+          <IncomeModal
+            open={incomeModalOpen}
+            onClose={() => setIncomeModalOpen(false)}
+            currentMonthIncomes={currentMonthIncomes}
+            onAdd={async (month, year, value, byPerson, note) => {
+              await addIncome(month, year, value, byPerson, note)
+            }}
+            onUpdate={async (incomeId, value, byPerson, note) => {
+              await updateIncome(incomeId, value, byPerson, note)
+            }}
+            onDelete={async (incomeId) => {
+              await deleteIncome(incomeId)
             }}
           />
 
