@@ -649,7 +649,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       set((state) => ({
         pendingMutations: [
           ...state.pendingMutations,
-          { type: 'addIncome', data: { month, year, ...incomeData } },
+          { type: 'addIncome', data: { ...incomeData } },
         ],
       }))
       return
@@ -683,7 +683,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         incomes: state.incomes.filter((i) => i.id !== tempId),
         pendingMutations: [
           ...state.pendingMutations,
-          { type: 'addIncome', data: { month, year, ...incomeData } },
+          { type: 'addIncome', data: { ...incomeData } },
         ],
         syncError: error.message || 'Failed to save income',
       }))
