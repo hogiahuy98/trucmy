@@ -3,6 +3,18 @@
 import { create } from 'zustand'
 import { supabase } from '../../lib/supabase'
 import type { Dish, TodayMeal, MealHistory, MealVote, MealCategory, UserRole } from './types'
+import { 
+  getDishes, 
+  getTodayMeals, 
+  getMealHistory, 
+  getMealVotes, 
+  addDish, 
+  updateDish, 
+  deleteDish, 
+  addTodayMeal, 
+  removeTodayMeal, 
+  submitVote 
+} from '../actions/meals'
 
 interface PendingMutation {
   type: 'addDish' | 'addTodayMeal' | 'removeTodayMeal' | 'updateDish' | 'deleteDish'
@@ -59,66 +71,20 @@ export const useMealStore = create<MealState>((set, get) => ({
   syncError: null,
   pendingMutations: [],
 
-  // Initialize: Load data from Supabase
+  // Initialize: Load data from Server Actions
   initialize: async () => {
     set({ isLoading: true, syncError: null })
-
-    if (!supabase) {
-      console.warn('Supabase not configured, using local state only')
-      set({ isLoading: false })
-      return
-    }
 
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      // Load dishes
-      const { data: dishesData, error: dishesError } = await supabase
-        .from('dishes')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (dishesError) throw dishesError
-
-      // Load today's meals with dish data
-      const { data: todayMealsData, error: todayMealsError } = await supabase
-        .from('today_meals')
-        .select(`
-          *,
-          dish:dishes(*)
-        `)
-        .eq('date', today)
-        .order('created_at', { ascending: false })
-
-      if (todayMealsError) throw todayMealsError
-
-      // Load recent meal history (last 7 days)
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      const { data: historyData, error: historyError } = await supabase
-        .from('meal_history')
-        .select(`
-          *,
-          dish:dishes(*)
-        `)
-        .gte('date', sevenDaysAgo.toISOString().split('T')[0])
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (historyError) throw historyError
-
-      // Load today's votes
-      const { data: votesData, error: votesError } = await supabase
-        .from('meal_votes')
-        .select(`
-          *,
-          dish:dishes(*)
-        `)
-        .eq('date', today)
-        .order('created_at', { ascending: false })
-
-      if (votesError) throw votesError
+      // Load data in parallel
+      const [dishesData, todayMealsData, historyData, votesData] = await Promise.all([
+        getDishes(),
+        getTodayMeals(today),
+        getMealHistory(),
+        getMealVotes(today)
+      ])
 
       set({
         dishes: (dishesData || []) as Dish[],
@@ -132,7 +98,7 @@ export const useMealStore = create<MealState>((set, get) => ({
       // Setup real-time subscriptions
       get().setupRealtimeSubscriptions()
     } catch (error: any) {
-      console.error('Failed to load data from Supabase:', error)
+      console.error('Failed to load data:', error)
       set({
         isLoading: false,
         syncError: error.message || 'Failed to load data',
@@ -331,10 +297,6 @@ export const useMealStore = create<MealState>((set, get) => ({
       dishes: [optimisticDish, ...state.dishes],
     }))
 
-    if (!supabase) {
-      return
-    }
-
     if (!get().isOnline) {
       set((state) => ({
         pendingMutations: [
@@ -346,13 +308,7 @@ export const useMealStore = create<MealState>((set, get) => ({
     }
 
     try {
-      const { data, error } = await supabase
-        .from('dishes')
-        .insert(dishData)
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await addDish(dishData)
 
       // Replace optimistic update with real data
       set((state) => ({
@@ -383,8 +339,6 @@ export const useMealStore = create<MealState>((set, get) => ({
       ),
     }))
 
-    if (!supabase) return
-
     if (!get().isOnline) {
       set((state) => ({
         pendingMutations: [
@@ -396,12 +350,7 @@ export const useMealStore = create<MealState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('dishes')
-        .update(updates)
-        .eq('id', dishId)
-
-      if (error) throw error
+      await updateDish(dishId, updates)
     } catch (error: any) {
       console.error('Failed to update dish:', error)
       get().initialize()
@@ -421,8 +370,6 @@ export const useMealStore = create<MealState>((set, get) => ({
       dishes: state.dishes.filter((d) => d.id !== dishId),
     }))
 
-    if (!supabase) return
-
     if (!get().isOnline) {
       set((state) => ({
         pendingMutations: [
@@ -434,12 +381,7 @@ export const useMealStore = create<MealState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('dishes')
-        .delete()
-        .eq('id', dishId)
-
-      if (error) throw error
+      await deleteDish(dishId)
     } catch (error: any) {
       console.error('Failed to delete dish:', error)
       get().initialize()
@@ -495,8 +437,6 @@ export const useMealStore = create<MealState>((set, get) => ({
       }))
     }
 
-    if (!supabase) return
-
     if (!get().isOnline) {
       set((state) => ({
         pendingMutations: [
@@ -508,20 +448,7 @@ export const useMealStore = create<MealState>((set, get) => ({
     }
 
     try {
-      // Add to today_meals
-      const { data: todayMeal, error: todayError } = await supabase
-        .from('today_meals')
-        .insert({ dish_id: dishId, date: mealDate })
-        .select()
-        .single()
-
-      if (todayError) throw todayError
-
-      // Add to history
-      await supabase.from('meal_history').insert({
-        dish_id: dishId,
-        date: mealDate,
-      })
+      const todayMeal = await addTodayMeal(dishId, mealDate)
 
       // Replace optimistic update with real data
       set((state) => {
@@ -564,8 +491,6 @@ export const useMealStore = create<MealState>((set, get) => ({
       todayMeals: state.todayMeals.filter((m) => m.id !== todayMealId),
     }))
 
-    if (!supabase) return
-
     if (!get().isOnline) {
       set((state) => ({
         pendingMutations: [
@@ -577,12 +502,7 @@ export const useMealStore = create<MealState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('today_meals')
-        .delete()
-        .eq('id', todayMealId)
-
-      if (error) throw error
+      await removeTodayMeal(todayMealId)
     } catch (error: any) {
       console.error('Failed to remove today meal:', error)
       get().initialize()
@@ -641,44 +561,35 @@ export const useMealStore = create<MealState>((set, get) => ({
       (v) => v.user_role === userRole && v.date === voteDate
     )
 
-    if (!supabase) {
-      // Use localStorage as fallback
-      const votes = JSON.parse(localStorage.getItem('meal_votes') || '[]')
-      const newVotes = existingVote
-        ? votes.map((v: any) =>
-            v.user_role === userRole && v.date === voteDate
-              ? { ...v, dish_id: dishId, updated_at: new Date().toISOString() }
+    try {
+      if (existingVote) {
+        // Optimistic update
+        set((state) => ({
+          mealVotes: state.mealVotes.map((v) =>
+            v.id === existingVote.id
+              ? { ...v, dish_id: dishId, dish, updated_at: new Date().toISOString() }
               : v
-          )
-        : [
-            ...votes.filter((v: any) => !(v.user_role === userRole && v.date === voteDate)),
-            {
-              id: Date.now(),
-              dish_id: dishId,
-              user_role: userRole,
-              date: voteDate,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              dish,
-            },
-          ]
-      localStorage.setItem('meal_votes', JSON.stringify(newVotes))
-      
-      // Update state
-      set((state) => {
-        if (existingVote) {
-          return {
-            mealVotes: state.mealVotes.map((v) =>
-              v.id === existingVote.id
-                ? { ...v, dish_id: dishId, dish, updated_at: new Date().toISOString() }
-                : v
-            ),
-          }
-        }
-        return {
+          ),
+        }))
+
+        const data = await submitVote({
+          dish_id: dishId,
+          user_role: userRole,
+          date: voteDate
+        })
+
+        set((state) => ({
+          mealVotes: state.mealVotes.map((v) =>
+            v.id === existingVote.id ? { ...data, dish } : v
+          ),
+        }))
+      } else {
+        // Optimistic update
+        const tempId = Date.now()
+        set((state) => ({
           mealVotes: [
             {
-              id: Date.now(),
+              id: tempId,
               dish_id: dishId,
               user_role: userRole,
               date: voteDate,
@@ -688,44 +599,18 @@ export const useMealStore = create<MealState>((set, get) => ({
             },
             ...state.mealVotes,
           ],
-        }
-      })
-      return
-    }
+        }))
 
-    try {
-      if (existingVote) {
-        // Update existing vote
-        const { data, error } = await supabase
-          .from('meal_votes')
-          .update({ dish_id: dishId, updated_at: new Date().toISOString() })
-          .eq('id', existingVote.id)
-          .select()
-          .single()
-
-        if (error) throw error
+        const data = await submitVote({
+          dish_id: dishId,
+          user_role: userRole,
+          date: voteDate
+        })
 
         set((state) => ({
           mealVotes: state.mealVotes.map((v) =>
-            v.id === existingVote.id ? { ...data, dish } : v
+             v.id === tempId ? { ...data, dish } : v
           ),
-        }))
-      } else {
-        // Insert new vote
-        const { data, error } = await supabase
-          .from('meal_votes')
-          .insert({
-            dish_id: dishId,
-            user_role: userRole,
-            date: voteDate,
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-
-        set((state) => ({
-          mealVotes: [{ ...data, dish }, ...state.mealVotes],
         }))
       }
     } catch (error: any) {
@@ -748,7 +633,7 @@ export const useMealStore = create<MealState>((set, get) => ({
 
   // Sync pending mutations
   syncPendingMutations: async () => {
-    if (!supabase || !get().isOnline) return
+    if (!get().isOnline) return
 
     const pending = get().pendingMutations
     if (pending.length === 0) return
@@ -761,41 +646,20 @@ export const useMealStore = create<MealState>((set, get) => ({
     for (const mutation of pending) {
       try {
         if (mutation.type === 'addDish') {
-          const { error } = await supabase.from('dishes').insert(mutation.data)
-          if (error) throw error
+          await addDish(mutation.data)
           successful.push(mutation)
         } else if (mutation.type === 'addTodayMeal') {
-          const { error } = await supabase
-            .from('today_meals')
-            .insert(mutation.data)
-          if (error) throw error
-          // Also add to history
-          await supabase.from('meal_history').insert({
-            dish_id: mutation.data.dish_id,
-            date: mutation.data.date,
-          })
+          await addTodayMeal(mutation.data.dish_id, mutation.data.date)
           successful.push(mutation)
         } else if (mutation.type === 'removeTodayMeal') {
-          const { error } = await supabase
-            .from('today_meals')
-            .delete()
-            .eq('id', mutation.data.id)
-          if (error) throw error
+          await removeTodayMeal(mutation.data.id)
           successful.push(mutation)
         } else if (mutation.type === 'updateDish') {
           const { id, ...updateData } = mutation.data
-          const { error } = await supabase
-            .from('dishes')
-            .update(updateData)
-            .eq('id', id)
-          if (error) throw error
+          await updateDish(id, updateData)
           successful.push(mutation)
         } else if (mutation.type === 'deleteDish') {
-          const { error } = await supabase
-            .from('dishes')
-            .delete()
-            .eq('id', mutation.data.id)
-          if (error) throw error
+          await deleteDish(mutation.data.id)
           successful.push(mutation)
         }
       } catch (error) {
@@ -816,9 +680,9 @@ export const useMealStore = create<MealState>((set, get) => ({
     const wasOffline = !get().isOnline
     set({ isOnline })
 
+    // Auto-sync when coming back online
     if (wasOffline && isOnline) {
       get().syncPendingMutations()
     }
   },
 }))
-

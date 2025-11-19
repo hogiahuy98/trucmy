@@ -3,6 +3,19 @@
 import { create } from 'zustand'
 import { supabase } from '../../lib/supabase'
 import type { Category, Expense, MonthlySummary, Income, BalanceSummary } from './types'
+import {
+  getCategories,
+  getExpenses,
+  getIncomes,
+  addExpense,
+  updateExpense,
+  deleteExpense,
+  addCategory,
+  addIncome,
+  updateIncome,
+  deleteIncome,
+  getMonthlyStats
+} from '../actions/finance'
 
 const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -40,6 +53,10 @@ interface FinanceState {
   categories: Category[]
   expenses: Expense[]
   incomes: Income[]
+  stats: {
+    balanceSummary: BalanceSummary | null
+    monthlySummary: MonthlySummary | null
+  }
   isLoading: boolean
   isOnline: boolean
   syncError: string | null
@@ -48,6 +65,7 @@ interface FinanceState {
   _categoriesChannel?: any
   _incomesChannel?: any
   initialize: () => Promise<void>
+  refreshStats: () => Promise<void>
   setupRealtimeSubscriptions: () => void
   cleanup: () => void
   addExpense: (expense: {
@@ -81,57 +99,49 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: DEFAULT_CATEGORIES,
   expenses: [],
   incomes: [],
+  stats: {
+    balanceSummary: null,
+    monthlySummary: null
+  },
   isLoading: false,
   isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   syncError: null,
   pendingMutations: [],
 
-  // Initialize: Load data from Supabase
+  // Initialize: Load data from Server Actions
   initialize: async () => {
     set({ isLoading: true, syncError: null })
 
-    if (!supabase) {
-      console.warn('Supabase not configured, using local state only')
-      set({ isLoading: false })
-      return
-    }
-
     try {
-      // Load categories
-      const { data: categoriesData, error: categoriesError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('created_at', { ascending: true })
+      const now = new Date()
+      const month = now.getMonth()
+      const year = now.getFullYear()
 
-      if (categoriesError) throw categoriesError
+      // Calculate date range for current month in local time
+      const startDate = new Date(year, month, 1)
+      const endDate = new Date(year, month + 1, 1)
+
+      // Load data in parallel
+      const [categoriesData, expensesData, incomesData, statsData] = await Promise.all([
+        getCategories(),
+        getExpenses(),
+        getIncomes(),
+        getMonthlyStats(month, year, startDate.toISOString(), endDate.toISOString())
+      ])
 
       const loadedCategories: Category[] =
         categoriesData && categoriesData.length > 0
           ? categoriesData
           : DEFAULT_CATEGORIES
 
-      // Load expenses
-      const { data: expensesData, error: expensesError } = await supabase
-        .from('expenses')
-        .select('*')
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
-
-      if (expensesError) throw expensesError
-
-      // Load incomes
-      const { data: incomesData, error: incomesError } = await supabase
-        .from('incomes')
-        .select('*')
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
-
-      if (incomesError) throw incomesError
-
       set({
         categories: loadedCategories,
         expenses: (expensesData || []) as Expense[],
         incomes: (incomesData || []) as Income[],
+        stats: {
+          balanceSummary: statsData,
+          monthlySummary: statsData?.monthlySummary
+        },
         isLoading: false,
         syncError: null,
       })
@@ -139,11 +149,34 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       // Setup real-time subscriptions
       get().setupRealtimeSubscriptions()
     } catch (error: any) {
-      console.error('Failed to load data from Supabase:', error)
+      console.error('Failed to load data:', error)
       set({
         isLoading: false,
         syncError: error.message || 'Failed to load data',
       })
+    }
+  },
+
+  // Refresh stats only
+  refreshStats: async () => {
+    try {
+      const now = new Date()
+      const month = now.getMonth()
+      const year = now.getFullYear()
+      // Calculate date range for current month in local time
+      const startDate = new Date(year, month, 1)
+      const endDate = new Date(year, month + 1, 1)
+      
+      const statsData = await getMonthlyStats(month, year, startDate.toISOString(), endDate.toISOString())
+      
+      set({
+        stats: {
+          balanceSummary: statsData,
+          monthlySummary: statsData?.monthlySummary
+        }
+      })
+    } catch (error) {
+      console.error('Failed to refresh stats:', error)
     }
   },
 
@@ -164,10 +197,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         async (payload: any) => {
           if (payload.eventType === 'INSERT') {
             set((state) => {
-              // Check if expense already exists (avoid duplicate from optimistic update)
               const exists = state.expenses.some((e) => e.id === payload.new.id)
               if (exists) {
-                // Update existing instead of adding duplicate
                 return {
                   expenses: state.expenses.map((e) =>
                     e.id === payload.new.id ? payload.new : e
@@ -189,6 +220,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
               expenses: state.expenses.filter((e) => e.id !== payload.old.id),
             }))
           }
+          // Refresh stats on any change
+          get().refreshStats()
         }
       )
       .subscribe()
@@ -244,7 +277,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         async (payload: any) => {
           if (payload.eventType === 'INSERT') {
             set((state) => {
-              // Check if income already exists (avoid duplicate from optimistic update)
               const exists = state.incomes.some((i) => i.id === payload.new.id)
               if (exists) {
                 return {
@@ -268,6 +300,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
               incomes: state.incomes.filter((i) => i.id !== payload.old.id),
             }))
           }
+          // Refresh stats on any change
+          get().refreshStats()
         }
       )
       .subscribe()
@@ -304,10 +338,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       expenses: [expenseData, ...state.expenses],
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to save to Supabase
     if (!get().isOnline) {
       // Queue for later sync
@@ -321,9 +351,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase.from('expenses').insert(expenseData)
-
-      if (error) throw error
+      await addExpense(expenseData)
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to save expense:', error)
       // Queue for retry
@@ -354,10 +383,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       ),
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to save to Supabase
     if (!get().isOnline) {
       // Queue for later sync
@@ -371,12 +396,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update(expenseData)
-        .eq('id', expenseId)
-
-      if (error) throw error
+      await updateExpense(expenseId, expenseData)
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to update expense:', error)
       // Reload expenses to restore state
@@ -411,10 +432,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       categories: [...state.categories, categoryData],
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to save to Supabase
     if (!get().isOnline) {
       set((state) => ({
@@ -427,11 +444,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase.from('categories').upsert(categoryData, {
-        onConflict: 'key',
-      })
-
-      if (error) throw error
+      await addCategory(categoryData)
     } catch (error: any) {
       console.error('Failed to save category:', error)
       set((state) => ({
@@ -451,10 +464,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       expenses: state.expenses.filter((e) => e.id !== expenseId),
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to delete from Supabase
     if (!get().isOnline) {
       // Queue for later sync
@@ -468,9 +477,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase.from('expenses').delete().eq('id', expenseId)
-
-      if (error) throw error
+      await deleteExpense(expenseId)
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to delete expense:', error)
       // Reload expenses to restore state
@@ -488,7 +496,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   // Sync pending mutations when online
   syncPendingMutations: async () => {
-    if (!supabase || !get().isOnline) return
+    if (!get().isOnline) return
 
     const pending = get().pendingMutations
     if (pending.length === 0) return
@@ -501,62 +509,27 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     for (const mutation of pending) {
       try {
         if (mutation.type === 'addExpense') {
-          const { error } = await supabase.from('expenses').insert(mutation.data)
-          if (error) throw error
+          await addExpense(mutation.data)
           successful.push(mutation)
         } else if (mutation.type === 'addCategory') {
-          const { error } = await supabase.from('categories').upsert(mutation.data, {
-            onConflict: 'key',
-          })
-          if (error) throw error
+          await addCategory(mutation.data)
           successful.push(mutation)
         } else if (mutation.type === 'updateExpense') {
           const { id, ...updateData } = mutation.data
-          const { error } = await supabase
-            .from('expenses')
-            .update(updateData)
-            .eq('id', id)
-          if (error) throw error
+          await updateExpense(id, updateData)
           successful.push(mutation)
         } else if (mutation.type === 'deleteExpense') {
-          const { error } = await supabase
-            .from('expenses')
-            .delete()
-            .eq('id', mutation.data.id)
-          if (error) throw error
+          await deleteExpense(mutation.data.id)
           successful.push(mutation)
         } else if (mutation.type === 'addIncome') {
-          const { month, year, value, by_person, note } = mutation.data
-          const { error } = await supabase
-            .from('incomes')
-            .insert({
-              month,
-              year,
-              value,
-              by_person,
-              note: note || null,
-            })
-          if (error) throw error
+          await addIncome(mutation.data)
           successful.push(mutation)
         } else if (mutation.type === 'updateIncome') {
-          const { id, value, by_person, note } = mutation.data
-          const { error } = await supabase
-            .from('incomes')
-            .update({
-              value,
-              by_person,
-              note: note || null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', id)
-          if (error) throw error
+          const { id, ...updateData } = mutation.data
+          await updateIncome(id, updateData)
           successful.push(mutation)
         } else if (mutation.type === 'deleteIncome') {
-          const { error } = await supabase
-            .from('incomes')
-            .delete()
-            .eq('id', mutation.data.id)
-          if (error) throw error
+          await deleteIncome(mutation.data.id)
           successful.push(mutation)
         }
       } catch (error) {
@@ -570,6 +543,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       isLoading: false,
       syncError: failed.length > 0 ? 'Some changes failed to sync' : null,
     }))
+    
+    // Refresh stats after sync
+    get().refreshStats()
   },
 
   // Update online status
@@ -584,6 +560,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   getMonthlySummary: (): MonthlySummary => {
+    const stats = get().stats.monthlySummary
+    if (stats) return stats
+
+    // Fallback to client-side calculation if stats not loaded yet
     const now = new Date()
     const month = now.getMonth()
     const year = now.getFullYear()
@@ -640,10 +620,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       ],
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to save to Supabase
     if (!get().isOnline) {
       set((state) => ({
@@ -656,19 +632,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { data, error } = await supabase
-        .from('incomes')
-        .insert({
-          month,
-          year,
-          value,
-          by_person: byPerson,
-          note: note || null,
-        })
-        .select()
-        .single()
-
-      if (error) throw error
+      const data = await addIncome(incomeData)
 
       // Replace optimistic update with real data
       set((state) => ({
@@ -676,6 +640,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
           i.id === tempId ? data : i
         ),
       }))
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to save income:', error)
       // Remove optimistic update
@@ -701,10 +666,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       ),
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to save to Supabase
     if (!get().isOnline) {
       set((state) => ({
@@ -717,17 +678,13 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('incomes')
-        .update({
-          value,
-          by_person: byPerson,
-          note: note || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', incomeId)
-
-      if (error) throw error
+      await updateIncome(incomeId, {
+        value,
+        by_person: byPerson,
+        note: note || null,
+        updated_at: new Date().toISOString(),
+      })
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to update income:', error)
       // Reload incomes to restore state
@@ -749,10 +706,6 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       incomes: state.incomes.filter((i) => i.id !== incomeId),
     }))
 
-    if (!supabase) {
-      return
-    }
-
     // Try to delete from Supabase
     if (!get().isOnline) {
       set((state) => ({
@@ -765,12 +718,8 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
 
     try {
-      const { error } = await supabase
-        .from('incomes')
-        .delete()
-        .eq('id', incomeId)
-
-      if (error) throw error
+      await deleteIncome(incomeId)
+      get().refreshStats()
     } catch (error: any) {
       console.error('Failed to delete income:', error)
       // Reload incomes to restore state
@@ -787,42 +736,45 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   // Get balance summary (sums all incomes for current month)
   getBalanceSummary: (): BalanceSummary => {
+    const stats = get().stats.balanceSummary
+    if (stats) return stats
+
+    // Fallback to client-side calculation if stats not loaded yet
     const currentMonthIncomes = get().getCurrentMonthIncomes()
     const monthlySummary = get().getMonthlySummary()
 
-    // Sum all incomes for current month
+    // Calculate incomes
     const totalIncome = currentMonthIncomes.reduce((sum, i) => sum + i.value, 0)
-    const totalGhIncome = currentMonthIncomes
+    const ghIncome = currentMonthIncomes
       .filter((i) => i.by_person === 'GH')
       .reduce((sum, i) => sum + i.value, 0)
-    const totalTmIncome = currentMonthIncomes
+    const tmIncome = currentMonthIncomes
       .filter((i) => i.by_person === 'TM')
       .reduce((sum, i) => sum + i.value, 0)
 
+    // Calculate expenses
     const totalExpenses = monthlySummary.total
-    const remaining = totalIncome - totalExpenses
-
-    // Calculate by person (split "Both" expenses 50/50)
-    const ghExpenses = monthlySummary.byPerson.GH + monthlySummary.byPerson.Both / 2
-    const tmExpenses = monthlySummary.byPerson.TM + monthlySummary.byPerson.Both / 2
+    
+    // Calculate split expenses (Both is split 50/50)
+    const ghExpenses = monthlySummary.byPerson.GH + (monthlySummary.byPerson.Both / 2)
+    const tmExpenses = monthlySummary.byPerson.TM + (monthlySummary.byPerson.Both / 2)
 
     return {
       totalIncome,
       totalExpenses,
-      remaining,
+      remaining: totalIncome - totalExpenses,
       byPerson: {
         GH: {
-          income: totalGhIncome,
+          income: ghIncome,
           expenses: ghExpenses,
-          remaining: totalGhIncome - ghExpenses,
+          remaining: ghIncome - ghExpenses
         },
         TM: {
-          income: totalTmIncome,
+          income: tmIncome,
           expenses: tmExpenses,
-          remaining: totalTmIncome - tmExpenses,
-        },
-      },
+          remaining: tmIncome - tmExpenses
+        }
+      }
     }
   },
 }))
-

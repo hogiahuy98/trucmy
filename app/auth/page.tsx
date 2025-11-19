@@ -23,10 +23,10 @@ const CORRECT_PASSWORD = ['dog', 'coffee', 'kiss'] // Đổi thành password c�
 
 export default function AuthPage() {
   const router = useRouter()
-  const [selected, setSelected] = useState([])
+  const [selected, setSelected] = useState<string[]>([])
   const [isShaking, setIsShaking] = useState(false)
 
-  const handleIconClick = (iconId) => {
+  const handleIconClick = (iconId: string) => {
     if (selected.includes(iconId)) {
       // Bỏ chọn nếu đã chọn
       setSelected(selected.filter(id => id !== iconId))
@@ -37,7 +37,7 @@ export default function AuthPage() {
     }
   }
 
-  const checkPassword = (selectedIcons) => {
+  const checkPassword = (selectedIcons: string[]) => {
     const isCorrect = JSON.stringify(selectedIcons) === JSON.stringify(CORRECT_PASSWORD)
     
     if (isCorrect) {
