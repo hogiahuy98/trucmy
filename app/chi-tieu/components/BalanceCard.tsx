@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Wallet } from 'lucide-react'
+import { ChevronDown, ChevronUp, Wallet, ArrowRightLeft } from 'lucide-react'
 import { formatVND } from '../utils'
 import type { BalanceSummary } from '../types'
 
@@ -9,9 +9,10 @@ interface BalanceCardProps {
   balance: BalanceSummary
   hasIncome: boolean
   onEditClick: () => void
+  onTransferClick: () => void
 }
 
-export default function BalanceCard({ balance, hasIncome, onEditClick }: BalanceCardProps) {
+export default function BalanceCard({ balance, hasIncome, onEditClick, onTransferClick }: BalanceCardProps) {
   const [showBreakdown, setShowBreakdown] = useState(false)
 
   const getRemainingColorClass = () => {
@@ -83,6 +84,20 @@ export default function BalanceCard({ balance, hasIncome, onEditClick }: Balance
                     <span className="text-olive-grey">Chi tiêu:</span>
                     <span className="text-dark-olive">{formatVND(balance.byPerson.GH.expenses)}</span>
                   </div>
+                  {balance.byPerson.GH.transfers !== 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-olive-grey">Chuyển tiền:</span>
+                      <span className={balance.byPerson.GH.transfers > 0 ? 'text-green-600' : 'text-orange-600'}>
+                        {balance.byPerson.GH.transfers > 0 ? '+' : ''}{formatVND(balance.byPerson.GH.transfers)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium pt-1 border-t border-olive-grey/10 mt-1">
+                    <span className="text-olive-grey">Còn lại:</span>
+                    <span className={balance.byPerson.GH.remaining >= 0 ? 'text-avocado-green' : 'text-red-500'}>
+                      {formatVND(balance.byPerson.GH.remaining)}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -97,6 +112,20 @@ export default function BalanceCard({ balance, hasIncome, onEditClick }: Balance
                     <span className="text-olive-grey">Chi tiêu:</span>
                     <span className="text-dark-olive">{formatVND(balance.byPerson.TM.expenses)}</span>
                   </div>
+                  {balance.byPerson.TM.transfers !== 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-olive-grey">Chuyển tiền:</span>
+                      <span className={balance.byPerson.TM.transfers > 0 ? 'text-green-600' : 'text-orange-600'}>
+                        {balance.byPerson.TM.transfers > 0 ? '+' : ''}{formatVND(balance.byPerson.TM.transfers)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-medium pt-1 border-t border-olive-grey/10 mt-1">
+                    <span className="text-olive-grey">Còn lại:</span>
+                    <span className={balance.byPerson.TM.remaining >= 0 ? 'text-avocado-green' : 'text-red-500'}>
+                      {formatVND(balance.byPerson.TM.remaining)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -104,17 +133,27 @@ export default function BalanceCard({ balance, hasIncome, onEditClick }: Balance
         </div>
       )}
 
-      {/* Always show "Add Income" button */}
-      <div className="mt-4 pt-4 border-t border-olive-grey/20">
+      {/* Action Buttons */}
+      <div className="mt-4 pt-4 border-t border-olive-grey/20 flex gap-2">
         <button
           onClick={(e) => {
             e.stopPropagation()
             onEditClick()
           }}
-          className="w-full bg-avocado-green text-white border-none rounded-xl py-3 px-6 text-base font-semibold cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
+          className="flex-1 bg-avocado-green text-white border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
         >
-          <Wallet size={18} />
-          Thêm thu nhập
+          <Wallet size={16} />
+          Thu nhập
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onTransferClick()
+          }}
+          className="flex-1 bg-sage text-dark-olive border-none rounded-xl py-3 px-4 text-sm font-semibold cursor-pointer transition-opacity hover:opacity-90 flex items-center justify-center gap-2"
+        >
+          <ArrowRightLeft size={16} />
+          Chuyển tiền
         </button>
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { supabase } from '../../lib/supabase'
-import type { Category, Expense, MonthlySummary, Income, BalanceSummary } from './types'
+import type { Category, Expense, MonthlySummary, Income, BalanceSummary, Transfer } from './types'
 import {
   getCategories,
   getExpenses,
@@ -14,7 +14,11 @@ import {
   addIncome,
   updateIncome,
   deleteIncome,
-  getMonthlyStats
+  getMonthlyStats,
+  getTransfers,
+  addTransfer,
+  updateTransfer,
+  deleteTransfer
 } from '../actions/finance'
 
 const DEFAULT_CATEGORIES: Category[] = [
@@ -45,7 +49,7 @@ const DEFAULT_CATEGORIES: Category[] = [
 ]
 
 interface PendingMutation {
-  type: 'addExpense' | 'addCategory' | 'deleteExpense' | 'updateExpense' | 'addIncome' | 'updateIncome' | 'deleteIncome'
+  type: 'addExpense' | 'addCategory' | 'deleteExpense' | 'updateExpense' | 'addIncome' | 'updateIncome' | 'deleteIncome' | 'addTransfer' | 'updateTransfer' | 'deleteTransfer'
   data: any
 }
 
@@ -53,6 +57,7 @@ interface FinanceState {
   categories: Category[]
   expenses: Expense[]
   incomes: Income[]
+  transfers: Transfer[]
   stats: {
     balanceSummary: BalanceSummary | null
     monthlySummary: MonthlySummary | null
@@ -64,6 +69,7 @@ interface FinanceState {
   _expensesChannel?: any
   _categoriesChannel?: any
   _incomesChannel?: any
+  _transfersChannel?: any
   initialize: () => Promise<void>
   refreshStats: () => Promise<void>
   setupRealtimeSubscriptions: () => void
@@ -88,7 +94,17 @@ interface FinanceState {
   addIncome: (month: number, year: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
   updateIncome: (incomeId: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
   deleteIncome: (incomeId: number) => Promise<void>
+  addTransfer: (transfer: {
+    amount: number
+    from_person: 'GH' | 'TM'
+    to_person: 'GH' | 'TM'
+    note?: string | null
+    date: Date | string
+  }) => Promise<void>
+  updateTransfer: (transferId: number, updates: Partial<Transfer>) => Promise<void>
+  deleteTransfer: (transferId: number) => Promise<void>
   getCurrentMonthIncomes: () => Income[]
+  getCurrentMonthTransfers: () => Transfer[]
   getBalanceSummary: () => BalanceSummary
   syncPendingMutations: () => Promise<void>
   setOnlineStatus: (isOnline: boolean) => void
@@ -99,6 +115,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   categories: DEFAULT_CATEGORIES,
   expenses: [],
   incomes: [],
+  transfers: [],
   stats: {
     balanceSummary: null,
     monthlySummary: null
@@ -122,10 +139,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       const endDate = new Date(year, month + 1, 1)
 
       // Load data in parallel
-      const [categoriesData, expensesData, incomesData, statsData] = await Promise.all([
+      const [categoriesData, expensesData, incomesData, transfersData, statsData] = await Promise.all([
         getCategories(),
         getExpenses(),
         getIncomes(),
+        getTransfers(),
         getMonthlyStats(month, year, startDate.toISOString(), endDate.toISOString())
       ])
 
@@ -138,6 +156,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         categories: loadedCategories,
         expenses: (expensesData || []) as Expense[],
         incomes: (incomesData || []) as Income[],
+        transfers: (transfersData || []) as Transfer[],
         stats: {
           balanceSummary: statsData,
           monthlySummary: statsData?.monthlySummary
@@ -160,6 +179,14 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   // Refresh stats only
   refreshStats: async () => {
     try {
+      // Temporarily clear stats to force client-side calculation with latest transfers
+      set({
+        stats: {
+          balanceSummary: null,
+          monthlySummary: null
+        }
+      })
+      
       const now = new Date()
       const month = now.getMonth()
       const year = now.getFullYear()
@@ -306,20 +333,64 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       )
       .subscribe()
 
+    // Subscribe to transfers changes
+    const transfersChannel = supabase
+      .channel('transfers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transfers',
+        },
+        async (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            set((state) => {
+              const exists = state.transfers.some((t) => t.id === payload.new.id)
+              if (exists) {
+                return {
+                  transfers: state.transfers.map((t) =>
+                    t.id === payload.new.id ? payload.new : t
+                  ),
+                }
+              }
+              return {
+                transfers: [payload.new, ...state.transfers],
+              }
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            set((state) => ({
+              transfers: state.transfers.map((t) =>
+                t.id === payload.new.id ? payload.new : t
+              ),
+            }))
+          } else if (payload.eventType === 'DELETE') {
+            set((state) => ({
+              transfers: state.transfers.filter((t) => t.id !== payload.old.id),
+            }))
+          }
+          // Refresh stats on any change
+          get().refreshStats()
+        }
+      )
+      .subscribe()
+
     // Store channels for cleanup
     set({ 
       _expensesChannel: expensesChannel, 
       _categoriesChannel: categoriesChannel,
-      _incomesChannel: incomesChannel
+      _incomesChannel: incomesChannel,
+      _transfersChannel: transfersChannel
     })
   },
 
   // Cleanup subscriptions
   cleanup: () => {
-    const { _expensesChannel, _categoriesChannel, _incomesChannel } = get()
+    const { _expensesChannel, _categoriesChannel, _incomesChannel, _transfersChannel } = get()
     if (_expensesChannel && supabase) supabase.removeChannel(_expensesChannel)
     if (_categoriesChannel && supabase) supabase.removeChannel(_categoriesChannel)
     if (_incomesChannel && supabase) supabase.removeChannel(_incomesChannel)
+    if (_transfersChannel && supabase) supabase.removeChannel(_transfersChannel)
   },
 
   // Add expense with Supabase sync
@@ -531,6 +602,16 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         } else if (mutation.type === 'deleteIncome') {
           await deleteIncome(mutation.data.id)
           successful.push(mutation)
+        } else if (mutation.type === 'addTransfer') {
+          await addTransfer(mutation.data)
+          successful.push(mutation)
+        } else if (mutation.type === 'updateTransfer') {
+          const { id, ...updateData } = mutation.data
+          await updateTransfer(id, updateData)
+          successful.push(mutation)
+        } else if (mutation.type === 'deleteTransfer') {
+          await deleteTransfer(mutation.data.id)
+          successful.push(mutation)
         }
       } catch (error) {
         console.error('Failed to sync mutation:', error)
@@ -734,6 +815,162 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     }
   },
 
+  // Add new transfer
+  addTransfer: async (transfer) => {
+    const transferData: Omit<Transfer, 'id' | 'created_at' | 'updated_at'> = {
+      amount: transfer.amount,
+      from_person: transfer.from_person,
+      to_person: transfer.to_person,
+      note: transfer.note || null,
+      date: transfer.date instanceof Date ? transfer.date.toISOString() : transfer.date,
+    }
+
+    // Optimistically update UI
+    const tempId = Date.now()
+    set((state) => ({
+      transfers: [
+        {
+          id: tempId,
+          ...transferData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...state.transfers,
+      ],
+    }))
+    
+    // Optimistically refresh stats
+    get().refreshStats()
+
+    // Try to save to Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'addTransfer', data: { ...transferData } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      const data = await addTransfer(transferData)
+
+      // Replace optimistic update with real data
+      set((state) => ({
+        transfers: state.transfers.map((t) =>
+          t.id === tempId ? data : t
+        ),
+      }))
+      get().refreshStats()
+    } catch (error: any) {
+      console.error('Failed to save transfer:', error)
+      // Remove optimistic update
+      set((state) => ({
+        transfers: state.transfers.filter((t) => t.id !== tempId),
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'addTransfer', data: { ...transferData } },
+        ],
+        syncError: error.message || 'Failed to save transfer',
+      }))
+    }
+  },
+
+  // Update existing transfer
+  updateTransfer: async (transferId: number, updates: Partial<Transfer>) => {
+    // Optimistically update UI
+    set((state) => ({
+      transfers: state.transfers.map((t) =>
+        t.id === transferId
+          ? { ...t, ...updates, updated_at: new Date().toISOString() }
+          : t
+      ),
+    }))
+    
+    // Optimistically refresh stats
+    get().refreshStats()
+
+    // Try to save to Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateTransfer', data: { id: transferId, ...updates } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      await updateTransfer(transferId, {
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      get().refreshStats()
+    } catch (error: any) {
+      console.error('Failed to update transfer:', error)
+      // Reload transfers to restore state
+      get().initialize()
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'updateTransfer', data: { id: transferId, ...updates } },
+        ],
+        syncError: error.message || 'Failed to update transfer',
+      }))
+    }
+  },
+
+  // Delete transfer
+  deleteTransfer: async (transferId: number) => {
+    // Optimistically update UI
+    set((state) => ({
+      transfers: state.transfers.filter((t) => t.id !== transferId),
+    }))
+    
+    // Optimistically refresh stats
+    get().refreshStats()
+
+    // Try to delete from Supabase
+    if (!get().isOnline) {
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'deleteTransfer', data: { id: transferId } },
+        ],
+      }))
+      return
+    }
+
+    try {
+      await deleteTransfer(transferId)
+      get().refreshStats()
+    } catch (error: any) {
+      console.error('Failed to delete transfer:', error)
+      // Reload transfers to restore state
+      get().initialize()
+      set((state) => ({
+        pendingMutations: [
+          ...state.pendingMutations,
+          { type: 'deleteTransfer', data: { id: transferId } },
+        ],
+        syncError: error.message || 'Failed to delete transfer',
+      }))
+    }
+  },
+
+  // Get current month transfers
+  getCurrentMonthTransfers: (): Transfer[] => {
+    const now = new Date()
+    const month = now.getMonth()
+    const year = now.getFullYear()
+    return get().transfers.filter((t) => {
+      const d = new Date(t.date)
+      return d.getMonth() === month && d.getFullYear() === year
+    })
+  },
+
   // Get balance summary (sums all incomes for current month)
   getBalanceSummary: (): BalanceSummary => {
     const stats = get().stats.balanceSummary
@@ -741,6 +978,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
     // Fallback to client-side calculation if stats not loaded yet
     const currentMonthIncomes = get().getCurrentMonthIncomes()
+    const currentMonthTransfers = get().getCurrentMonthTransfers()
     const monthlySummary = get().getMonthlySummary()
 
     // Calculate incomes
@@ -759,20 +997,39 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     const ghExpenses = monthlySummary.byPerson.GH + (monthlySummary.byPerson.Both / 2)
     const tmExpenses = monthlySummary.byPerson.TM + (monthlySummary.byPerson.Both / 2)
 
+    // Calculate transfers
+    const ghTransfersSent = currentMonthTransfers
+      .filter((t) => t.from_person === 'GH')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const ghTransfersReceived = currentMonthTransfers
+      .filter((t) => t.to_person === 'GH')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const tmTransfersSent = currentMonthTransfers
+      .filter((t) => t.from_person === 'TM')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const tmTransfersReceived = currentMonthTransfers
+      .filter((t) => t.to_person === 'TM')
+      .reduce((sum, t) => sum + t.amount, 0)
+    
+    const ghNetTransfers = ghTransfersReceived - ghTransfersSent
+    const tmNetTransfers = tmTransfersReceived - tmTransfersSent
+
     return {
       totalIncome,
       totalExpenses,
-      remaining: totalIncome - totalExpenses,
+      remaining: totalIncome - totalExpenses + ghNetTransfers + tmNetTransfers,
       byPerson: {
         GH: {
           income: ghIncome,
           expenses: ghExpenses,
-          remaining: ghIncome - ghExpenses
+          transfers: ghNetTransfers,
+          remaining: ghIncome - ghExpenses + ghNetTransfers
         },
         TM: {
           income: tmIncome,
           expenses: tmExpenses,
-          remaining: tmIncome - tmExpenses
+          transfers: tmNetTransfers,
+          remaining: tmIncome - tmExpenses + tmNetTransfers
         }
       }
     }

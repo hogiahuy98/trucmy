@@ -134,3 +134,51 @@ export async function getMonthlyStats(month: number, year: number, startDate: st
   if (error) throw new Error(error.message)
   return data
 }
+
+// Transfers
+export async function getTransfers() {
+  const supabase = createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('transfers')
+    .select('*')
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function addTransfer(transfer: any) {
+  const supabase = createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('transfers')
+    .insert(transfer)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/chi-tieu')
+  return data
+}
+
+export async function updateTransfer(id: number, updates: any) {
+  const supabase = createSupabaseServerClient()
+  const { error } = await supabase
+    .from('transfers')
+    .update(updates)
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/chi-tieu')
+}
+
+export async function deleteTransfer(id: number) {
+  const supabase = createSupabaseServerClient()
+  const { error } = await supabase
+    .from('transfers')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/chi-tieu')
+}

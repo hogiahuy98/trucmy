@@ -37,13 +37,34 @@ export interface Income {
   updated_at: string
 }
 
+export interface Transfer {
+  id: number
+  amount: number
+  from_person: 'GH' | 'TM'
+  to_person: 'GH' | 'TM'
+  note?: string | null
+  date: string | Date
+  created_at: string
+  updated_at: string
+}
+
 export interface BalanceSummary {
   totalIncome: number
   totalExpenses: number
   remaining: number
   byPerson: {
-    GH: { income: number, expenses: number, remaining: number }
-    TM: { income: number, expenses: number, remaining: number }
+    GH: { 
+      income: number
+      expenses: number
+      transfers: number  // Net transfers (received - sent)
+      remaining: number 
+    }
+    TM: { 
+      income: number
+      expenses: number
+      transfers: number  // Net transfers (received - sent)
+      remaining: number 
+    }
   }
 }
 

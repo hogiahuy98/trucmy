@@ -15,6 +15,7 @@ import InsightsCard from './components/InsightsCard'
 import CategoryChips from './components/CategoryChips'
 import AddExpenseModal from './components/AddExpenseModal'
 import IncomeModal from './components/IncomeModal'
+import TransferModal from './components/TransferModal'
 import QuickAddExpense from './components/QuickAddExpense'
 import LoadingIndicator from './components/LoadingIndicator'
 import styles from './styles/finance.module.scss'
@@ -35,14 +36,19 @@ export default function FinancePage() {
   const setOnlineStatus = useFinanceStore((s) => s.setOnlineStatus)
   const cleanup = useFinanceStore((s) => s.cleanup)
   const getCurrentMonthIncomes = useFinanceStore((s) => s.getCurrentMonthIncomes)
+  const getCurrentMonthTransfers = useFinanceStore((s) => s.getCurrentMonthTransfers)
   const getBalanceSummary = useFinanceStore((s) => s.getBalanceSummary)
   const addIncome = useFinanceStore((s) => s.addIncome)
   const updateIncome = useFinanceStore((s) => s.updateIncome)
   const deleteIncome = useFinanceStore((s) => s.deleteIncome)
+  const addTransfer = useFinanceStore((s) => s.addTransfer)
+  const updateTransfer = useFinanceStore((s) => s.updateTransfer)
+  const deleteTransfer = useFinanceStore((s) => s.deleteTransfer)
 
   const [open, setOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [incomeModalOpen, setIncomeModalOpen] = useState(false)
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [hasInitialized, setHasInitialized] = useState(false)
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -174,6 +180,13 @@ export default function FinancePage() {
     [incomes]
   )
 
+  const transfers = useFinanceStore((s) => s.transfers)
+
+  const currentMonthTransfers = useMemo(
+    () => useFinanceStore.getState().getCurrentMonthTransfers(),
+    [transfers]
+  )
+
   const ghAmount = byPerson.GH + byPerson.Both / 2
   const tmAmount = byPerson.TM + byPerson.Both / 2
   const ghPct = total > 0 ? Math.round((ghAmount / total) * 100) : 0
@@ -230,6 +243,7 @@ export default function FinancePage() {
               balance={balance}
               hasIncome={currentMonthIncomes.length > 0}
               onEditClick={() => setIncomeModalOpen(true)}
+              onTransferClick={() => setTransferModalOpen(true)}
             />
           </motion.div>
 
@@ -322,6 +336,32 @@ export default function FinancePage() {
             }}
             onDelete={async (incomeId) => {
               await deleteIncome(incomeId)
+            }}
+          />
+
+          <TransferModal
+            open={transferModalOpen}
+            onClose={() => setTransferModalOpen(false)}
+            currentMonthTransfers={currentMonthTransfers}
+            onAdd={async (amount, fromPerson, toPerson, note, date) => {
+              await addTransfer({
+                amount,
+                from_person: fromPerson,
+                to_person: toPerson,
+                note,
+                date: date || new Date()
+              })
+            }}
+            onUpdate={async (transferId, amount, fromPerson, toPerson, note) => {
+              await updateTransfer(transferId, {
+                amount,
+                from_person: fromPerson,
+                to_person: toPerson,
+                note
+              })
+            }}
+            onDelete={async (transferId) => {
+              await deleteTransfer(transferId)
             }}
           />
 

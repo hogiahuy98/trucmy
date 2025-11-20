@@ -26,6 +26,14 @@ DECLARE
     tm_expense_raw numeric := 0;
     both_expense_raw numeric := 0;
     
+    -- Transfers
+    gh_transfers_sent numeric := 0;
+    gh_transfers_received numeric := 0;
+    tm_transfers_sent numeric := 0;
+    tm_transfers_received numeric := 0;
+    gh_net_transfers numeric := 0;
+    tm_net_transfers numeric := 0;
+    
     -- Calculated splits
     gh_expense_final numeric := 0;
     tm_expense_final numeric := 0;
@@ -62,7 +70,25 @@ BEGIN
     FROM expenses
     WHERE date >= start_date_iso::timestamptz AND date < end_date_iso::timestamptz;
 
-    -- 3. Calculate Splits (Both is split 50/50)
+    -- 3. Calculate Transfers (using exact date range from client)
+    SELECT 
+        COALESCE(SUM(CASE WHEN from_person = 'GH' THEN amount ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN to_person = 'GH' THEN amount ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN from_person = 'TM' THEN amount ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN to_person = 'TM' THEN amount ELSE 0 END), 0)
+    INTO 
+        gh_transfers_sent,
+        gh_transfers_received,
+        tm_transfers_sent,
+        tm_transfers_received
+    FROM transfers
+    WHERE date >= start_date_iso::timestamptz AND date < end_date_iso::timestamptz;
+
+    -- Calculate net transfers (received - sent)
+    gh_net_transfers := gh_transfers_received - gh_transfers_sent;
+    tm_net_transfers := tm_transfers_received - tm_transfers_sent;
+
+    -- 4. Calculate Splits (Both is split 50/50)
     gh_expense_final := gh_expense_raw + (both_expense_raw / 2);
     tm_expense_final := tm_expense_raw + (both_expense_raw / 2);
 
@@ -84,17 +110,19 @@ BEGIN
     result := json_build_object(
         'totalIncome', total_income,
         'totalExpenses', total_expense,
-        'remaining', total_income - total_expense,
+        'remaining', total_income - total_expense + gh_net_transfers + tm_net_transfers,
         'byPerson', json_build_object(
             'GH', json_build_object(
                 'income', gh_income,
                 'expenses', gh_expense_final,
-                'remaining', gh_income - gh_expense_final
+                'transfers', gh_net_transfers,
+                'remaining', gh_income - gh_expense_final + gh_net_transfers
             ),
             'TM', json_build_object(
                 'income', tm_income,
                 'expenses', tm_expense_final,
-                'remaining', tm_income - tm_expense_final
+                'transfers', tm_net_transfers,
+                'remaining', tm_income - tm_expense_final + tm_net_transfers
             )
         ),
         'monthlySummary', json_build_object(
