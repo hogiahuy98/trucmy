@@ -73,9 +73,9 @@ export default function RecentTransactionsCard({
         </div>
         <div
           style={{
-            backgroundColor: '#EFECE6',
-            borderRadius: '20px',
-            padding: '40px 20px',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '20px',
+          padding: '40px 20px',
             textAlign: 'center',
             color: '#8B8F7A',
             fontSize: '16px',
@@ -102,10 +102,10 @@ export default function RecentTransactionsCard({
       </div>
       <div
         style={{
-          backgroundColor: '#EFECE6',
+          backgroundColor: '#FFFFFF',
           borderRadius: '20px',
           overflow: 'hidden',
-          boxShadow: '0 2px 16px rgba(111, 143, 95, 0.08)',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         }}
       >
         {expenses.slice(0, 8).map((item, idx) => {

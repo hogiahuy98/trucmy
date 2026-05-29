@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Chi tiêu Huy My",
+    "slug": "chi-tieu-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF8F4"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.giahuyho.chitieu"
+    },
+    "android": {
+      "package": "com.giahuyho.chitieu"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-quick-actions",
+        {
+          "iosActions": [
+            {
+              "id": "quick-add",
+              "title": "Thêm chi tiêu nhanh",
+              "subtitle": "Ghi lại khoản chi mới",
+              "icon": "symbol:plus.circle.fill"
+            },
+            {
+              "id": "stats",
+              "title": "Xem thống kê",
+              "icon": "symbol:chart.bar.fill"
+            }
+          ]
+        }
+      ]
+    ],
+    "scheme": "chitieu",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

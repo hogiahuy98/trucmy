@@ -229,7 +229,7 @@ export default function FinancePage() {
             transition={{ duration: 0.22, delay: 0.05 }}
             style={{ marginBottom: '20px' }}
           >
-            <TotalSummaryCard total={total} />
+            <TotalSummaryCard total={total} ghAmount={ghAmount} tmAmount={tmAmount} ghPct={ghPct} tmPct={tmPct} />
           </motion.div>
 
           {/* Balance Card */}
@@ -304,7 +304,7 @@ export default function FinancePage() {
             onTouchStart={handleFabMouseDown}
             onTouchEnd={handleFabMouseUp}
           >
-            <span className={styles.fabInner}>Thêm chi tiêu</span>
+            <span className={styles.fabInner}>+</span>
           </button>
 
           <AddExpenseModal

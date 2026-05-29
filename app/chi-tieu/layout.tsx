@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ServiceWorkerRegistration from './components/ServiceWorkerRegistration'
+import { LoveWifePopup } from './components/LoveWifePopup'
 
 export const metadata: Metadata = {
   title: 'Chi tiêu Huy My',
@@ -38,6 +39,7 @@ export default function ChiTieuLayout({
       {/* PWA Meta Tags - These will be added to <head> by Next.js metadata */}
       <ServiceWorkerRegistration />
       {children}
+      <LoveWifePopup />
     </>
   )
 }
