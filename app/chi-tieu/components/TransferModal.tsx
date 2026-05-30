@@ -15,7 +15,7 @@ interface TransferModalProps {
   onClose: () => void
   currentMonthTransfers: Transfer[]
   onAdd: (amount: number, fromPerson: 'GH' | 'TM', toPerson: 'GH' | 'TM', note?: string, date?: Date) => Promise<void>
-  onUpdate?: (transferId: number, amount: number, fromPerson: 'GH' | 'TM', toPerson: 'GH' | 'TM', note?: string) => Promise<void>
+  onUpdate?: (transferId: number, amount: number, fromPerson: 'GH' | 'TM', toPerson: 'GH' | 'TM', note?: string, date?: string) => Promise<void>
   onDelete?: (transferId: number) => Promise<void>
 }
 
@@ -108,7 +108,7 @@ export default function TransferModal({
       const date = new Date(transferDate)
 
       if (editingTransfer && onUpdate) {
-        await onUpdate(editingTransfer.id, amount, fromPerson, toPerson, noteInput.trim() || undefined)
+        await onUpdate(editingTransfer.id, amount, fromPerson, toPerson, noteInput.trim() || undefined, transferDate)
         toast.success('Đã cập nhật chuyển tiền', {
           description: 'Giao dịch đã được cập nhật thành công',
           duration: 2500,

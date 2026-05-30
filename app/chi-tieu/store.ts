@@ -209,6 +209,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
 
   // Setup real-time subscriptions
   setupRealtimeSubscriptions: () => {
+    get().cleanup()
     if (!supabase) return
 
     // Subscribe to expenses changes
@@ -525,6 +526,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         ],
         syncError: error.message || 'Failed to save category',
       }))
+      throw error
     }
   },
 

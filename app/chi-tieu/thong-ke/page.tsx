@@ -93,17 +93,22 @@ export default function ThongKePage() {
     }
   }, [hasInitialized, isLoading, isInitialLoad])
 
+  // Reset to page 1 whenever any filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [startDate, endDate, selectedPerson, selectedCategory, searchText])
+
   // Filter expenses
   const filteredExpenses = useMemo(() => {
     let filtered = [...expenses]
 
-    // Filter by date range
+    // Filter by date range (inclusive on both ends)
     if (startDate && endDate) {
       const start = dayjs(startDate).startOf('day')
       const end = dayjs(endDate).endOf('day')
       filtered = filtered.filter((e) => {
         const expenseDate = dayjs(e.date)
-        return expenseDate.isAfter(start) && expenseDate.isBefore(end)
+        return !expenseDate.isBefore(start) && !expenseDate.isAfter(end)
       })
     }
 

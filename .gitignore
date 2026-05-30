@@ -3,6 +3,16 @@
 # dependencies
 /node_modules
 /chi-tieu-mobile/node_modules
+/chi-tieu-mobile/.expo
+/chi-tieu-mobile/ios
+/chi-tieu-mobile/android
+/chi-tieu-mobile/web
+/chi-tieu-mobile/dist
+/chi-tieu-mobile/build
+/chi-tieu-mobile/coverage
+/chi-tieu-mobile/logs
+/chi-tieu-mobile/reports
+/chi-tieu-mobile/temp
 /.pnp
 .pnp.*
 .yarn/*

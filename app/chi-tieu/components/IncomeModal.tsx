@@ -13,7 +13,7 @@ import type { Income } from '../types'
 interface IncomeModalProps {
   open: boolean
   onClose: () => void
-  currentMonthIncomes: Income[]
+  incomes: Income[]
   onAdd: (month: number, year: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
   onUpdate?: (incomeId: number, value: number, byPerson: 'GH' | 'TM', note?: string) => Promise<void>
   onDelete?: (incomeId: number) => Promise<void>
@@ -22,7 +22,7 @@ interface IncomeModalProps {
 export default function IncomeModal({
   open,
   onClose,
-  currentMonthIncomes,
+  incomes,
   onAdd,
   onUpdate,
   onDelete,
@@ -39,7 +39,7 @@ export default function IncomeModal({
   const valueInputRef = useRef<HTMLInputElement>(null)
 
   // Filter incomes for selected month/year
-  const selectedMonthIncomes = currentMonthIncomes.filter(
+  const selectedMonthIncomes = incomes.filter(
     (i) => i.month === month && i.year === year
   )
 

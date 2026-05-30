@@ -163,28 +163,28 @@ export default function FinancePage() {
     }
   }, [])
 
+  const stats = useFinanceStore((s) => s.stats)
+  const incomes = useFinanceStore((s) => s.incomes)
+  const transfers = useFinanceStore((s) => s.transfers)
+
   const { total, byPerson, categoryMap } = useMemo(
     () => useFinanceStore.getState().getMonthlySummary(),
-    [expenses]
+    [expenses, stats]
   )
-
-  const incomes = useFinanceStore((s) => s.incomes)
 
   const balance = useMemo(
     () => useFinanceStore.getState().getBalanceSummary(),
-    [expenses, incomes]
+    [expenses, incomes, transfers, stats]
+  )
+
+  const currentMonthTransfers = useMemo(
+    () => useFinanceStore.getState().getCurrentMonthTransfers(),
+    [transfers]
   )
 
   const currentMonthIncomes = useMemo(
     () => useFinanceStore.getState().getCurrentMonthIncomes(),
     [incomes]
-  )
-
-  const transfers = useFinanceStore((s) => s.transfers)
-
-  const currentMonthTransfers = useMemo(
-    () => useFinanceStore.getState().getCurrentMonthTransfers(),
-    [transfers]
   )
 
   const ghAmount = byPerson.GH + byPerson.Both / 2
@@ -327,7 +327,7 @@ export default function FinancePage() {
           <IncomeModal
             open={incomeModalOpen}
             onClose={() => setIncomeModalOpen(false)}
-            currentMonthIncomes={currentMonthIncomes}
+            incomes={incomes}
             onAdd={async (month, year, value, byPerson, note) => {
               await addIncome(month, year, value, byPerson, note)
             }}
@@ -352,12 +352,13 @@ export default function FinancePage() {
                 date: date || new Date()
               })
             }}
-            onUpdate={async (transferId, amount, fromPerson, toPerson, note) => {
+            onUpdate={async (transferId, amount, fromPerson, toPerson, note, date) => {
               await updateTransfer(transferId, {
                 amount,
                 from_person: fromPerson,
                 to_person: toPerson,
-                note
+                note,
+                date: date ? new Date(date) : undefined,
               })
             }}
             onDelete={async (transferId) => {
